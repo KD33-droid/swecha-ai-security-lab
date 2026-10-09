@@ -1,0 +1,1230 @@
+/* =========================================================
+   SWECHA AI SECURITY LAB
+   Global / Challenge Workspace
+   ========================================================= */
+
+:root {
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+
+  color: #e8eef7;
+  background: #030811;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100%;
+  width: 100%;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      circle at 50% -10%,
+      rgba(18, 71, 126, 0.16),
+      transparent 38%
+    ),
+    linear-gradient(180deg, #030811 0%, #050b14 100%);
+  color: #e8eef7;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* =========================================================
+   Shared
+   ========================================================= */
+
+.app-shell {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.panel {
+  background: rgba(8, 16, 28, 0.88);
+  border: 1px solid rgba(57, 82, 112, 0.38);
+  border-radius: 18px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.015);
+}
+
+.eyebrow {
+  color: #7890ad;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.muted {
+  color: #8391a5;
+}
+
+.error-box,
+.error-banner {
+  color: #ff9c9c;
+  background: rgba(127, 29, 29, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.error-banner {
+  width: 100%;
+  max-width: 1220px;
+  margin: 0 auto 18px;
+}
+
+.starting-banner {
+  width: 100%;
+  max-width: 1220px;
+  margin: 0 auto 18px;
+  padding: 12px 16px;
+  border: 1px solid rgba(14, 165, 255, 0.25);
+  border-radius: 10px;
+  background: rgba(14, 165, 255, 0.07);
+  color: #9ecfff;
+}
+
+.primary-button,
+.secondary-button,
+.danger-button {
+  border-radius: 10px;
+  padding: 11px 18px;
+  border: 1px solid transparent;
+  font-weight: 650;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.primary-button {
+  background: #0789ed;
+  color: white;
+  border-color: #1399ff;
+  box-shadow: 0 5px 20px rgba(0, 137, 237, 0.16);
+}
+
+.primary-button:hover:not(:disabled) {
+  background: #119cfb;
+  box-shadow: 0 8px 26px rgba(0, 137, 237, 0.25);
+}
+
+.secondary-button {
+  background: rgba(19, 32, 50, 0.75);
+  color: #dbe8f7;
+  border-color: #314761;
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: rgba(28, 47, 71, 0.9);
+  border-color: #456482;
+}
+
+.danger-button {
+  color: #ff6464;
+  background: rgba(127, 29, 29, 0.1);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.danger-button:hover:not(:disabled) {
+  background: rgba(127, 29, 29, 0.24);
+  border-color: rgba(239, 68, 68, 0.65);
+}
+
+.text-button {
+  background: none;
+  border: 0;
+  color: #8ba2bd;
+  padding: 0;
+}
+
+.text-button:hover {
+  color: #d7e7f9;
+}
+
+/* =========================================================
+   Landing
+   ========================================================= */
+
+.hero {
+  width: min(900px, calc(100% - 40px));
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 120px 0 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.hero h1 {
+  margin: 22px 0;
+  font-size: clamp(52px, 7vw, 88px);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.hero-copy {
+  max-width: 650px;
+  color: #9aa8ba;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.hero-actions {
+  margin-top: 32px;
+}
+
+.lab-meta {
+  display: flex;
+  gap: 50px;
+  margin-top: 70px;
+}
+
+.lab-meta div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lab-meta span {
+  color: #687d96;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+}
+
+.lab-meta strong {
+  font-size: 26px;
+}
+
+/* =========================================================
+   Join
+   ========================================================= */
+
+.join-panel {
+  width: min(460px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 42px;
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+}
+
+.join-panel h1 {
+  margin: 12px 0 8px;
+  font-size: 42px;
+  letter-spacing: -0.04em;
+}
+
+.join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 30px;
+}
+
+.join-form label,
+.form-section label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #b9c6d6;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+input,
+textarea,
+select {
+  color: #e7eef8;
+  background: #08111e;
+  border: 1px solid #263b53;
+  border-radius: 10px;
+  outline: none;
+}
+
+input {
+  height: 46px;
+  padding: 0 14px;
+}
+
+textarea {
+  padding: 13px 14px;
+  resize: vertical;
+}
+
+select {
+  min-height: 46px;
+  padding: 0 12px;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #168ff0;
+  box-shadow: 0 0 0 3px rgba(14, 145, 240, 0.1);
+}
+
+/* =========================================================
+   Lobby
+   ========================================================= */
+
+.lobby {
+  width: min(1220px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 42px 0 50px;
+}
+
+.topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 30px;
+}
+
+.lobby-title {
+  margin: 8px 0 0;
+  font-size: 42px;
+  letter-spacing: -0.04em;
+}
+
+.participant {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.participant span {
+  color: #60758f;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+}
+
+.participant strong {
+  color: #edf4fc;
+}
+
+.participant small {
+  color: #7f91a7;
+}
+
+.welcome-card {
+  margin-top: 45px;
+  padding: 28px;
+  border: 1px solid #1e3957;
+  border-radius: 16px;
+  background:
+    radial-gradient(
+      circle at 0% 0%,
+      rgba(14, 145, 240, 0.09),
+      transparent 40%
+    ),
+    rgba(7, 15, 27, 0.82);
+}
+
+.welcome-card > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #5fa7d9;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.7);
+}
+
+.welcome-card h2 {
+  margin: 18px 0 8px;
+  font-size: 30px;
+}
+
+.welcome-card p {
+  margin: 0;
+  color: #8998aa;
+  line-height: 1.6;
+}
+
+.challenge-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.challenge-card {
+  min-height: 230px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 25px;
+  border: 1px solid #1d344e;
+  border-radius: 16px;
+  background: rgba(8, 16, 28, 0.82);
+}
+
+.challenge-number {
+  color: #277ab5;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.challenge-category {
+  color: #4e9bd2;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.challenge-content h3 {
+  margin: 8px 0;
+  font-size: 24px;
+}
+
+.challenge-content p {
+  color: #8d9caf;
+  line-height: 1.55;
+}
+
+.lobby-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+  color: #53677f;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+/* =========================================================
+   CHALLENGE WORKSPACE
+   ========================================================= */
+
+.challenge-screen {
+  width: 100%;
+  min-height: 100vh;
+  padding: 22px 0 30px;
+}
+
+/* Main centered canvas */
+
+.challenge-screen > * {
+  width: min(1220px, calc(100% - 48px));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ---------------------------------------------------------
+   Header
+   --------------------------------------------------------- */
+
+.challenge-header {
+  position: relative;
+  min-height: 205px;
+  padding-top: 4px;
+  text-align: center;
+}
+
+.challenge-header > div:first-child {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.challenge-header .text-button {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  color: #91a6bf;
+  font-size: 14px;
+}
+
+.challenge-header .text-button:hover {
+  color: #dcecff;
+}
+
+.challenge-header h1 {
+  margin: 4px 0 8px;
+  color: #f0f5fb;
+  font-size: clamp(48px, 5vw, 66px);
+  line-height: 1;
+  letter-spacing: -0.055em;
+  font-weight: 750;
+}
+
+.challenge-header p {
+  margin: 0;
+  color: #a4b0c0;
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+/* Score card */
+
+.challenge-score {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 164px;
+  height: 82px;
+  padding: 13px 22px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: baseline;
+  column-gap: 5px;
+  text-align: left;
+
+  border: 1px solid #173d67;
+  border-radius: 16px;
+
+  background:
+    radial-gradient(
+      circle at 20% 10%,
+      rgba(14, 145, 240, 0.12),
+      transparent 60%
+    ),
+    rgba(7, 19, 34, 0.94);
+
+  box-shadow:
+    0 14px 40px rgba(0, 0, 0, 0.25),
+    inset 0 0 25px rgba(14, 145, 240, 0.025);
+}
+
+.challenge-score span {
+  width: 100%;
+  color: #91a2b6;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.challenge-score strong {
+  color: #1499ff;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.challenge-score small {
+  color: #8ea1b7;
+  font-size: 14px;
+}
+
+/* ---------------------------------------------------------
+   Phase progress
+   --------------------------------------------------------- */
+
+.phase-bar {
+  position: relative;
+  width: min(560px, 50%);
+  height: 74px;
+  margin-top: -78px !important;
+  margin-bottom: 28px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 2;
+}
+
+.phase-bar::before {
+  content: "";
+  position: absolute;
+  top: 19px;
+  left: 42px;
+  right: 42px;
+  height: 2px;
+  background: #172a40;
+}
+
+.phase {
+  position: relative;
+  z-index: 1;
+  width: 90px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+
+  color: #647992;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.phase span {
+  width: 40px;
+  height: 40px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 50%;
+  border: 2px solid #395270;
+
+  background: #07111f;
+  color: #8da0b6;
+
+  font-size: 15px;
+  transition: all 180ms ease;
+}
+
+.phase.active {
+  color: #159aff;
+}
+
+.phase.active span {
+  color: white;
+  border-color: #159aff;
+  background: #0789ed;
+  box-shadow: 0 0 22px rgba(14, 145, 240, 0.35);
+}
+
+.phase.complete {
+  color: #51d49a;
+}
+
+.phase.complete span {
+  border-color: #34c98a;
+  color: #34c98a;
+}
+
+/* ---------------------------------------------------------
+   Main two-column workspace
+   --------------------------------------------------------- */
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(330px, 0.8fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+/* All main workspace panels */
+
+.workspace-grid > .panel {
+  min-width: 0;
+  border-color: #173d67;
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(14, 145, 240, 0.045),
+      transparent 45%
+    ),
+    rgba(8, 17, 30, 0.93);
+}
+
+/* ---------------------------------------------------------
+   BREAK chat panel
+   --------------------------------------------------------- */
+
+.chat-panel {
+  height: 580px;
+  min-height: 580px;
+
+  display: flex;
+  flex-direction: column;
+
+  padding: 25px 30px 20px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-shrink: 0;
+}
+
+.panel-header h2,
+.secure-panel h2,
+.workspace-grid > .panel > h2 {
+  margin: 6px 0 0;
+  color: #eef4fb;
+  font-size: 28px;
+  letter-spacing: -0.025em;
+}
+
+.panel-header .eyebrow {
+  color: #159aff;
+}
+
+.badge {
+  padding: 6px 10px;
+  border: 1px solid #26435f;
+  border-radius: 999px;
+  color: #8094ab;
+  background: rgba(11, 26, 43, 0.8);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.chat-history {
+  flex: 1;
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+
+  margin-top: 20px;
+  padding: 8px 5px 15px;
+
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #263e59 transparent;
+}
+
+.chat-history::-webkit-scrollbar {
+  width: 5px;
+}
+
+.chat-history::-webkit-scrollbar-thumb {
+  background: #263e59;
+  border-radius: 99px;
+}
+
+.empty-chat {
+  margin: auto;
+  max-width: 420px;
+  color: #61758d;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* Chat bubbles */
+
+.chat-message {
+  max-width: 78%;
+  padding: 11px 15px 12px;
+  border-radius: 15px;
+  line-height: 1.5;
+}
+
+.chat-message p {
+  margin: 3px 0 0;
+  white-space: pre-wrap;
+}
+
+.chat-role {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.chat-message.user {
+  align-self: flex-end;
+  color: #eef7ff;
+  background:
+    linear-gradient(
+      145deg,
+      #0d70c2,
+      #07599e
+    );
+  border-bottom-right-radius: 5px;
+  box-shadow: 0 8px 24px rgba(0, 94, 170, 0.18);
+}
+
+.chat-message.user .chat-role {
+  color: #bfe4ff;
+}
+
+.chat-message.agent {
+  align-self: flex-start;
+  color: #dbe5f0;
+  background:
+    linear-gradient(
+      145deg,
+      #26364c,
+      #1b2a3d
+    );
+  border-bottom-left-radius: 5px;
+}
+
+.chat-message.agent .chat-role {
+  color: #9fb3ca;
+}
+
+.chat-message.system {
+  align-self: center;
+  max-width: 88%;
+  color: #a9c4dd;
+  background: rgba(18, 39, 62, 0.65);
+  border: 1px solid #1f466d;
+  text-align: center;
+}
+
+/* Message composer */
+
+.chat-input {
+  flex-shrink: 0;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+
+  margin-top: 2px;
+}
+
+.chat-input textarea {
+  height: 46px;
+  min-height: 46px;
+  max-height: 120px;
+  resize: none;
+
+  border-radius: 13px;
+  border-color: #27415d;
+  background: #081525;
+  padding: 12px 15px;
+  color: #dceafa;
+}
+
+.chat-input textarea::placeholder {
+  color: #60748c;
+}
+
+.chat-input .primary-button {
+  height: 46px;
+  min-width: 94px;
+}
+
+/* ---------------------------------------------------------
+   Objective panel
+   --------------------------------------------------------- */
+
+.objective-panel {
+  height: 580px;
+  min-height: 580px;
+
+  padding: 28px 30px;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.objective-panel .eyebrow {
+  color: #159aff;
+}
+
+.objective-panel h2 {
+  margin-top: 8px;
+}
+
+.objective-panel > p {
+  margin: 0 0 22px;
+  color: #a4b0c0;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.objective-status {
+  min-height: 57px;
+  padding: 0 17px;
+  margin-bottom: 10px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  border: 1px solid #1b344e;
+  border-radius: 12px;
+
+  background: rgba(13, 28, 46, 0.75);
+}
+
+.objective-status span {
+  color: #d8e4f0;
+  font-size: 14px;
+}
+
+.objective-status strong {
+  color: #a1b3c8;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.objective-status strong::before {
+  content: "−";
+  display: inline-grid;
+  place-items: center;
+
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+
+  border: 2px solid #738ba6;
+  border-radius: 50%;
+
+  color: #738ba6;
+  font-size: 12px;
+}
+
+.hint-box {
+  margin-top: 4px;
+  padding: 20px;
+
+  border: 1px solid #1687d8;
+  border-radius: 14px;
+
+  background:
+    radial-gradient(
+      circle at 10% 0%,
+      rgba(14, 145, 240, 0.1),
+      transparent 60%
+    ),
+    rgba(8, 28, 50, 0.65);
+}
+
+.hint-box strong {
+  display: block;
+  margin-bottom: 7px;
+  color: #dcecff;
+  font-size: 15px;
+}
+
+.hint-box p {
+  margin: 0;
+  color: #91a7be;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* ---------------------------------------------------------
+   Secure phase
+   --------------------------------------------------------- */
+
+.secure-panel {
+  padding: 30px;
+}
+
+.form-section {
+  margin-top: 30px;
+}
+
+.form-section > label {
+  margin-bottom: 10px;
+}
+
+.form-section > .secondary-button,
+.form-section > .primary-button {
+  margin-top: 14px;
+}
+
+.control-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.control-row {
+  min-height: 50px;
+  padding: 0 14px;
+
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 11px;
+
+  border: 1px solid #1d354f;
+  border-radius: 10px;
+
+  background: rgba(10, 25, 42, 0.72);
+}
+
+.control-row input {
+  width: 17px;
+  height: 17px;
+  accent-color: #0789ed;
+}
+
+.status-row {
+  min-height: 56px;
+  margin-top: 10px;
+  padding: 0 15px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  border: 1px solid #1c354e;
+  border-radius: 11px;
+
+  background: rgba(10, 25, 42, 0.7);
+}
+
+.status-row span {
+  color: #94a7bc;
+  font-size: 13px;
+}
+
+.status-row strong {
+  color: #dce9f7;
+  font-size: 13px;
+}
+
+.full-width {
+  width: 100%;
+  margin-top: 20px;
+}
+
+/* ---------------------------------------------------------
+   Retest
+   --------------------------------------------------------- */
+
+.workspace-grid .section-description {
+  color: #91a0b3;
+  line-height: 1.6;
+}
+
+.workspace-grid .form-section textarea {
+  width: 100%;
+  min-height: 100px;
+  margin-top: 3px;
+}
+
+.completion-card {
+  margin-top: 22px;
+  padding: 18px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: 12px;
+
+  background: rgba(34, 197, 94, 0.07);
+}
+
+.completion-card strong {
+  color: #7ce2a8;
+}
+
+.completion-card span {
+  color: #91a7a0;
+  font-size: 13px;
+}
+
+/* ---------------------------------------------------------
+   Bottom run bar
+   --------------------------------------------------------- */
+
+.challenge-footer {
+  min-height: 56px;
+  margin-top: 10px !important;
+  padding: 0 24px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  border: 1px solid #1b344e;
+  border-radius: 13px;
+
+  background: rgba(8, 18, 31, 0.94);
+}
+
+.challenge-footer > span {
+  color: #7d91a8;
+  font-size: 12px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.challenge-footer .danger-button {
+  padding: 8px 15px;
+  font-size: 12px;
+}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .challenge-screen > * {
+    width: min(100% - 28px, 700px);
+  }
+
+  .challenge-header {
+    min-height: 230px;
+  }
+
+  .challenge-header h1 {
+    font-size: 46px;
+    padding: 25px 20px 0;
+  }
+
+  .challenge-header .text-button {
+    position: static;
+    align-self: flex-start;
+    margin-bottom: 15px;
+  }
+
+  .challenge-score {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .phase-bar {
+    width: min(500px, 100%);
+    margin-top: 0 !important;
+  }
+
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-panel,
+  .objective-panel {
+    height: auto;
+    min-height: 520px;
+  }
+
+  .challenge-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .challenge-screen {
+    padding-top: 15px;
+  }
+
+  .challenge-screen > * {
+    width: calc(100% - 24px);
+  }
+
+  .challenge-header {
+    min-height: 245px;
+  }
+
+  .challenge-header h1 {
+    font-size: 38px;
+  }
+
+  .challenge-header p {
+    font-size: 14px;
+  }
+
+  .phase-bar {
+    height: 65px;
+  }
+
+  .phase {
+    width: 70px;
+    font-size: 10px;
+  }
+
+  .phase span {
+    width: 34px;
+    height: 34px;
+    font-size: 13px;
+  }
+
+  .phase-bar::before {
+    top: 16px;
+    left: 30px;
+    right: 30px;
+  }
+
+  .chat-panel,
+  .objective-panel {
+    padding: 22px;
+    min-height: 500px;
+  }
+
+  .panel-header h2,
+  .secure-panel h2,
+  .workspace-grid > .panel > h2 {
+    font-size: 24px;
+  }
+
+  .chat-message {
+    max-width: 90%;
+  }
+
+  .chat-input {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-input .primary-button {
+    width: 100%;
+  }
+
+  .challenge-footer {
+    padding: 10px 14px;
+  }
+
+  .lobby {
+    width: calc(100% - 24px);
+  }
+
+  .topbar {
+    flex-direction: column;
+  }
+
+  .participant {
+    align-items: flex-start;
+  }
+
+  .hero {
+    width: calc(100% - 28px);
+    padding-top: 70px;
+  }
+
+  .hero h1 {
+    font-size: 48px;
+  }
+
+  .lab-meta {
+    gap: 25px;
+  }
+
+  .join-panel {
+    padding: 28px;
+  }
+}

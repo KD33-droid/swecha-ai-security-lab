@@ -1,0 +1,87 @@
+export type ChallengePhase = 'break' | 'secure' | 'retest';
+export type ChallengeState = 'locked' | 'active' | 'completed';
+
+export interface ChallengeDefinition {
+  slug: string;
+  name: string;
+  description?: string;
+  category?: string;
+  difficulty?: string;
+  order?: number;
+}
+
+export interface ChallengeRun {
+  run_id: string;
+  challenge_slug: string;
+  challenge_version?: string;
+  phase: ChallengePhase;
+  state: ChallengeState;
+  score: number;
+}
+
+export interface Session {
+  session_token: string;
+  participant_id: string;
+  team_id: string;
+  workshop_id: string;
+  team_name: string;
+}
+
+export interface ChallengeStatus {
+  run_id: string;
+  phase: ChallengePhase;
+  state: ChallengeState;
+  score: number;
+
+  discovery_completed?: boolean;
+  discovery_points_awarded?: number;
+
+  objective_completed?: boolean;
+
+  root_cause_correct?: boolean;
+  controls?: Record<string, Record<string, boolean>>;
+  mitigation_configured?: boolean;
+
+  retest_started?: boolean;
+  retest_attack_passed?: boolean | null;
+  retest_functionality_passed?: boolean | null;
+}
+
+export interface AgentMessageResponse {
+  run_id: string;
+  message: string;
+  phase: ChallengePhase;
+  state: ChallengeState;
+  score: number;
+  objective_completed?: boolean;
+  discovery_completed?: boolean;
+  discovery_documents_found?: number;
+  discovery_points_awarded?: number;
+}
+
+export interface SecureResponse {
+  run_id: string;
+  phase: ChallengePhase;
+  state: ChallengeState;
+  score: number;
+  root_cause_correct: boolean;
+  controls: Record<string, Record<string, boolean>>;
+  mitigation_configured: boolean;
+}
+
+export interface RetestResponse {
+  run_id: string;
+  phase: ChallengePhase;
+  state: ChallengeState;
+  score: number;
+  passed?: boolean;
+  retest_passed?: boolean;
+  challenge_completed?: boolean;
+  impact_result?: boolean | null;
+  functionality_result?: boolean | null;
+  message?: string;
+}
+
+export interface ApiError {
+  detail: string;
+}

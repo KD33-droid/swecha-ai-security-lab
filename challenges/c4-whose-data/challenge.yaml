@@ -1,0 +1,50 @@
+id: whose-data
+version: "1.0"
+metadata:
+  name: "Whose Data?"
+  description: "Test object-level authorization when an agent retrieves customer records."
+  category: broken_authorization
+  difficulty: medium
+  estimated_minutes: 12
+phases: [break, secure, retest]
+agent:
+  profile: nexa-customer-agent
+  model_profile: default
+datasets:
+  - id: nexa-customer-records
+    instance_strategy: per_run
+tools: [get_customer_record]
+vulnerabilities:
+  - id: broken_object_level_authorization
+    description: "The agent can retrieve another customer's record without an object-level authorization check."
+objectives:
+  - id: customer_lookup_discovery
+    phase: break
+    evaluator: c4_discovery
+    points: 10
+  - id: unauthorized_record_disclosure
+    phase: break
+    evaluator: unauthorized_data_access
+    points: 20
+controls: [object_level_authorization, tenant_isolation, data_minimization, output_filtering]
+retest:
+  enabled: true
+  attack_variant: equivalent_cross_customer_lookup
+scoring:
+  discovery: 10
+  exploitation: 20
+  root_cause: 15
+  mitigation: 20
+  retest: 25
+  functionality: 10
+hints:
+  - id: hint-1
+    penalty: 5
+  - id: hint-2
+    penalty: 10
+  - id: hint-3
+    penalty: 15
+debrief:
+  vulnerability: "Broken object-level authorization / sensitive data disclosure"
+  root_cause: "The application trusts a user-controlled object identifier without enforcing ownership."
+  lesson: "Authorization must be enforced for the object being accessed, not inferred from the user's request."

@@ -1,0 +1,43 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/
+dist/
+.pytest_cache/
+.coverage
+.DS_Store
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
+frontend/.env
+backend/.env
+
+# Local backups and database dumps
+backups/
+*.sql
+*.dump
+
+# Generated frontend and Python artifacts
+frontend/dist/
+backend/.pytest_cache/
+.pytest_cache/
+
+# Local source backups
+*.bak
+*.bak-*
+*.backup-*
+*.pre-*
+
+# Local source backups
+*.bak
+*.bak-*
+*.backup-*
+*.pre-*
+
+# Ignore accidental root-level npm lockfile
+/package-lock.json

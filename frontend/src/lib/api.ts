@@ -1,0 +1,261 @@
+import type {
+  AgentMessageResponse,
+  ChallengeDefinition,
+  ChallengeRun,
+  ChallengeStatus,
+  RetestResponse,
+  SecureResponse,
+  Session,
+} from './types';
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+export async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+
+  const contentType = response.headers.get('content-type') || '';
+
+  const data = contentType.includes('application/json')
+    ? await response.json()
+    : await response.text();
+
+  if (!response.ok) {
+    const message =
+      typeof data === 'object' &&
+      data !== null &&
+      'detail' in data
+        ? String(data.detail)
+        : `Request failed with status ${response.status}`;
+
+    throw new Error(message);
+  }
+
+  return data as T;
+}
+
+export async function startChallenge(
+  sessionToken: string,
+  challengeSlug: string,
+): Promise<ChallengeRun> {
+  return apiRequest<ChallengeRun>(
+    '/api/v1/workshops/challenges/start',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        session_token: sessionToken,
+        challenge_slug: challengeSlug,
+      }),
+    },
+  );
+}
+
+export async function resetChallenge(
+  sessionToken: string,
+  runId: string,
+): Promise<ChallengeRun> {
+  return apiRequest<ChallengeRun>(
+    `/api/v1/workshops/challenges/${runId}/reset`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        session_token: sessionToken,
+      }),
+    },
+  );
+}
+
+export async function joinWorkshop(
+  workshopCode: string,
+  teamCode: string,
+  displayName: string,
+): Promise<Session> {
+  return apiRequest<Session>(
+    '/api/v1/workshops/join',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        workshop_code: workshopCode,
+        team_code: teamCode,
+        display_name: displayName,
+      }),
+    },
+  );
+}
+
+export async function listChallenges(): Promise<ChallengeDefinition[]> {
+  const response = await apiRequest<{ items: ChallengeDefinition[] }>(
+    '/api/v1/challenges',
+  );
+
+  return response.items;
+}
+
+export async function getChallengeStatus(
+  slug: string,
+  sessionToken: string,
+  runId: string,
+): Promise<ChallengeStatus> {
+  return apiRequest<ChallengeStatus>(
+    `/api/v1/${slug}/status?session_token=${encodeURIComponent(
+      sessionToken,
+    )}&run_id=${encodeURIComponent(runId)}`,
+  );
+}
+
+export async function sendChallengeMessage(
+  slug: string,
+  sessionToken: string,
+  runId: string,
+  message: string,
+): Promise<AgentMessageResponse> {
+  return apiRequest<AgentMessageResponse>(
+    `/api/v1/${slug}/message`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        session_token: sessionToken,
+        run_id: runId,
+        message,
+      }),
+    },
+  );
+}
+
+export async function submitRootCause(
+  slug: string,
+  sessionToken: string,
+  runId: string,
+  rootCause: string,
+): Promise<SecureResponse> {
+  if (slug === 'c1') {
+    return apiRequest<SecureResponse>(
+      '/api/v1/c1/secure/root-cause',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          session_token: sessionToken,
+          run_id: runId,
+          root_cause: rootCause,
+        }),
+      },
+    );
+  }
+
+  return apiRequest<SecureResponse>(
+    `/api/v1/${slug}/secure`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        session_token: sessionToken,
+        run_id: runId,
+        root_cause: rootCause,
+      }),
+    },
+  );
+}
+
+export async function submitControls(
+  slug: string,
+  sessionToken: string,
+  runId: string,
+  controls: Record<string, Record<string, boolean>>,
+): Promise<SecureResponse> {
+  if (slug === 'c1') {
+    return apiRequest<SecureResponse>(
+      '/api/v1/c1/secure/policies',
+      {
+        method: 'PATCH',
+        body: JSON.stringify({
+          session_token: sessionToken,
+          run_id: runId,
+          controls,
+        }),
+      },
+    );
+  }
+
+  return apiRequest<SecureResponse>(
+    `/api/v1/${slug}/secure`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        session_token: sessionToken,
+        run_id: runId,
+        controls,
+      }),
+    },
+  );
+}
+
+export async function startRetest(
+  slug: string,
+  sessionToken: string,
+  runId: string,
+): Promise<RetestResponse> {
+  const path =
+    slug === 'c1'
+      ? '/api/v1/c1/retest/start'
+      : `/api/v1/${slug}/retest/start`;
+
+  return apiRequest<RetestResponse>(path, {
+    method: 'POST',
+    body: JSON.stringify({
+      session_token: sessionToken,
+      run_id: runId,
+    }),
+  });
+}
+
+export async function sendRetestAttack(
+  slug: string,
+  sessionToken: string,
+  runId: string,
+  message: string,
+): Promise<RetestResponse> {
+  const path =
+    slug === 'c1'
+      ? '/api/v1/c1/retest/attack'
+      : `/api/v1/${slug}/retest/attack`;
+
+  return apiRequest<RetestResponse>(path, {
+    method: 'POST',
+    body: JSON.stringify({
+      session_token: sessionToken,
+      run_id: runId,
+      message,
+    }),
+  });
+}
+
+export async function sendFunctionalityTest(
+  slug: string,
+  sessionToken: string,
+  runId: string,
+  message: string,
+): Promise<RetestResponse> {
+  const path =
+    slug === 'c1'
+      ? '/api/v1/c1/retest/functionality'
+      : `/api/v1/${slug}/retest/functionality`;
+
+  return apiRequest<RetestResponse>(path, {
+    method: 'POST',
+    body: JSON.stringify({
+      session_token: sessionToken,
+      run_id: runId,
+      message,
+    }),
+  });
+}
+
+export { API_BASE_URL };
