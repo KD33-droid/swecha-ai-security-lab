@@ -48,7 +48,7 @@ export async function startChallenge(
   challengeSlug: string,
 ): Promise<ChallengeRun> {
   return apiRequest<ChallengeRun>(
-    '/api/v1/workshops/challenges/start',
+    '/workshops/challenges/start',
     {
       method: 'POST',
       body: JSON.stringify({
@@ -80,7 +80,7 @@ export async function joinWorkshop(
   displayName: string,
 ): Promise<Session> {
   return apiRequest<Session>(
-    '/api/v1/workshops/join',
+    '/workshops/join',
     {
       method: 'POST',
       body: JSON.stringify({
@@ -94,7 +94,7 @@ export async function joinWorkshop(
 
 export async function listChallenges(): Promise<ChallengeDefinition[]> {
   const response = await apiRequest<{ items: ChallengeDefinition[] }>(
-    '/api/v1/challenges',
+    '/challenges',
   );
 
   return response.items;
@@ -139,7 +139,7 @@ export async function submitRootCause(
 ): Promise<SecureResponse> {
   if (slug === 'c1') {
     return apiRequest<SecureResponse>(
-      '/api/v1/c1/secure/root-cause',
+      '/c1/secure/root-cause',
       {
         method: 'POST',
         body: JSON.stringify({
@@ -172,7 +172,7 @@ export async function submitControls(
 ): Promise<SecureResponse> {
   if (slug === 'c1') {
     return apiRequest<SecureResponse>(
-      '/api/v1/c1/secure/policies',
+      '/c1/secure/policies',
       {
         method: 'PATCH',
         body: JSON.stringify({
@@ -204,7 +204,7 @@ export async function startRetest(
 ): Promise<RetestResponse> {
   const path =
     slug === 'c1'
-      ? '/api/v1/c1/retest/start'
+      ? '/c1/retest/start'
       : `/api/v1/${slug}/retest/start`;
 
   return apiRequest<RetestResponse>(path, {
@@ -224,7 +224,7 @@ export async function sendRetestAttack(
 ): Promise<RetestResponse> {
   const path =
     slug === 'c1'
-      ? '/api/v1/c1/retest/attack'
+      ? '/c1/retest/attack'
       : `/api/v1/${slug}/retest/attack`;
 
   return apiRequest<RetestResponse>(path, {
@@ -245,7 +245,7 @@ export async function sendFunctionalityTest(
 ): Promise<RetestResponse> {
   const path =
     slug === 'c1'
-      ? '/api/v1/c1/retest/functionality'
+      ? '/c1/retest/functionality'
       : `/api/v1/${slug}/retest/functionality`;
 
   return apiRequest<RetestResponse>(path, {
