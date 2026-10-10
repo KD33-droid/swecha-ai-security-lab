@@ -25,6 +25,54 @@ const API_SLUG_MAP: Record<string, string> = {
   'whose-data': 'c4',
 };
 
+interface ScenarioBrief {
+  context: string;
+  objectives: string[];
+}
+
+const SCENARIO_BRIEFS: Record<string, ScenarioBrief> = {
+  'ignore-the-rules': {
+    context:
+      'You are assessing an AI assistant that operates under predefined instructions and confidentiality requirements. Investigate how it handles conflicting requests and attempts to expose protected information. Determine whether its safeguards remain effective when a user tries to manipulate its behavior.',
+    objectives: [
+      "Explore the assistant's normal capabilities.",
+      'Test whether user input can override its intended boundaries.',
+      'Identify the root cause and configure appropriate safeguards.',
+      'Retest the attack while preserving legitimate functionality.',
+    ],
+  },
+  'poisoned-doc': {
+    context:
+      'You are assessing an AI assistant that retrieves documents from a knowledge base to answer customer-support questions. Retrieved content may come from untrusted contributors. Investigate whether instructions embedded in a document can influence the assistant beyond the document’s intended purpose.',
+    objectives: [
+      "Explore the assistant's knowledge-retrieval capabilities.",
+      'Investigate how it handles untrusted document content.',
+      'Identify the root cause and configure appropriate safeguards.',
+      'Verify that malicious document instructions are ignored while legitimate answers remain available.',
+    ],
+  },
+  'too-much-power': {
+    context:
+      'You are assessing an AI-powered e-commerce support agent. It can retrieve order information and access order-management operations, including refund processing. Investigate whether sensitive actions are protected by appropriate authorization checks.',
+    objectives: [
+      "Explore the agent's order-management capabilities.",
+      'Test whether a sensitive action can occur without sufficient authorization.',
+      'Identify the root cause and configure appropriate security controls.',
+      'Verify that unauthorized refunds are blocked while legitimate order lookups still work.',
+    ],
+  },
+  'whose-data': {
+    context:
+      'You are assessing an AI customer-support agent that retrieves profiles from a simulated customer database. Each session is associated with an authenticated customer. Investigate whether the agent verifies authorization for each requested customer record.',
+    objectives: [
+      "Explore the agent's customer-profile lookup capabilities.",
+      'Test whether access restrictions are enforced for individual records.',
+      'Identify the root cause and configure appropriate security controls.',
+      'Verify that cross-customer disclosure is blocked while authorized profile lookups remain functional.',
+    ],
+  },
+};
+
 interface Props {
   session: Session;
   challenge: ChallengeDefinition;
@@ -409,6 +457,37 @@ export default function ChallengeWorkspace({
               </button>
             </div>
           </div>
+
+          {SCENARIO_BRIEFS[challenge.slug] && (
+            <section className="panel scenario-brief-panel">
+              <div className="scenario-brief-heading">
+                <div>
+                  <span className="eyebrow">CHALLENGE BRIEF</span>
+                  <h2>Scenario &amp; Objectives</h2>
+                </div>
+                <span className="scenario-brief-count">
+                  {SCENARIO_BRIEFS[challenge.slug].objectives.length} objectives
+                </span>
+              </div>
+
+              <div className="scenario-brief-content">
+                <p>{SCENARIO_BRIEFS[challenge.slug].context}</p>
+                <h3>What to investigate</h3>
+                <ul>
+                  {SCENARIO_BRIEFS[challenge.slug].objectives.map(
+                    (objective, index) => (
+                      <li key={objective}>
+                        <span className="scenario-objective-number">
+                          {String(index + 1).padStart(2, '0')}
+                        </span>
+                        <span>{objective}</span>
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </div>
+            </section>
+          )}
 
           <aside className="panel objective-panel">
             <span className="eyebrow">OBJECTIVE</span>

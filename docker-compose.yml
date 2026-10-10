@@ -31,6 +31,7 @@ services:
       DATABASE_URL: postgresql+psycopg://swecha:swecha_dev@postgres:5432/swecha_lab
       REDIS_URL: redis://redis:6379/0
       ENVIRONMENT: development
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:5174"
     ports:
       - "8000:8000"
     volumes:

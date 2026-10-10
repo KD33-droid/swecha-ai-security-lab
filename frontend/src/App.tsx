@@ -190,7 +190,7 @@ function App() {
 
     try {
       const result = await apiRequest<Session>(
-        '/workshops/join',
+        '/api/v1/workshops/join',
         {
           method: 'POST',
           body: JSON.stringify({
