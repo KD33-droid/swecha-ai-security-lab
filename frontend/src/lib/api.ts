@@ -64,7 +64,7 @@ export async function resetChallenge(
   runId: string,
 ): Promise<ChallengeRun> {
   return apiRequest<ChallengeRun>(
-    `/api/v1/workshops/challenges/${runId}/reset`,
+    `/workshops/challenges/${runId}/reset`,
     {
       method: 'POST',
       body: JSON.stringify({
@@ -106,7 +106,7 @@ export async function getChallengeStatus(
   runId: string,
 ): Promise<ChallengeStatus> {
   return apiRequest<ChallengeStatus>(
-    `/api/v1/${slug}/status?session_token=${encodeURIComponent(
+    `/${slug}/status?session_token=${encodeURIComponent(
       sessionToken,
     )}&run_id=${encodeURIComponent(runId)}`,
   );
@@ -119,7 +119,7 @@ export async function sendChallengeMessage(
   message: string,
 ): Promise<AgentMessageResponse> {
   return apiRequest<AgentMessageResponse>(
-    `/api/v1/${slug}/message`,
+    `/${slug}/message`,
     {
       method: 'POST',
       body: JSON.stringify({
@@ -152,7 +152,7 @@ export async function submitRootCause(
   }
 
   return apiRequest<SecureResponse>(
-    `/api/v1/${slug}/secure`,
+    `/${slug}/secure`,
     {
       method: 'PATCH',
       body: JSON.stringify({
@@ -185,7 +185,7 @@ export async function submitControls(
   }
 
   return apiRequest<SecureResponse>(
-    `/api/v1/${slug}/secure`,
+    `/${slug}/secure`,
     {
       method: 'PATCH',
       body: JSON.stringify({
@@ -205,7 +205,7 @@ export async function startRetest(
   const path =
     slug === 'c1'
       ? '/c1/retest/start'
-      : `/api/v1/${slug}/retest/start`;
+      : `/${slug}/retest/start`;
 
   return apiRequest<RetestResponse>(path, {
     method: 'POST',
@@ -225,7 +225,7 @@ export async function sendRetestAttack(
   const path =
     slug === 'c1'
       ? '/c1/retest/attack'
-      : `/api/v1/${slug}/retest/attack`;
+      : `/${slug}/retest/attack`;
 
   return apiRequest<RetestResponse>(path, {
     method: 'POST',
@@ -246,7 +246,7 @@ export async function sendFunctionalityTest(
   const path =
     slug === 'c1'
       ? '/c1/retest/functionality'
-      : `/api/v1/${slug}/retest/functionality`;
+      : `/${slug}/retest/functionality`;
 
   return apiRequest<RetestResponse>(path, {
     method: 'POST',
