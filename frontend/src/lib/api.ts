@@ -8,18 +8,20 @@ import type {
   Session,
 } from './types';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+).replace(/\/+$/, '');
 
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const apiPath = path.startsWith('/api/v1/')
-    ? path
-    : `/api/v1${path}`;
+  const apiPath = `/${path.replace(/^\/+/, '')}`
+    .replace(/^\/api\/v1\/?/, '');
 
-  const response = await fetch(`${API_BASE_URL}${apiPath}`, {
+  const response = await fetch(
+    `${API_BASE_URL.replace(/\/api\/v1$/, '')}/api/v1${apiPath}`,
+    {
     headers: {
       'Content-Type': 'application/json',
       ...(options.headers || {}),
