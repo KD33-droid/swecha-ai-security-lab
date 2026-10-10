@@ -63,21 +63,41 @@ _SENSITIVE_TARGET_PHRASES = (
 
 
 def is_c1_prompt_injection(message: str) -> bool:
-    """Return whether a message is a bounded C1 prompt-injection attempt."""
+    """Recognize varied attempts to override instructions or extract protected context."""
     normalized = " ".join(message.lower().split())
-    override = (
-        any(phrase in normalized for phrase in _INSTRUCTION_OVERRIDE_PHRASES)
-        or bool(_INSTRUCTION_OVERRIDE_RE.search(normalized))
-        or "do not follow your instructions" in normalized
-    )
-    sensitive = any(phrase in normalized for phrase in _SENSITIVE_TARGET_PHRASES)
 
-    # System/developer prompt extraction is itself a protected-context target
-    # when coupled with an override request.
-    return (override and sensitive) or (
-        any(p in normalized for p in ("system prompt", "developer message"))
-        and any(p in normalized for p in ("reveal", "show", "print", "give", "provide", "tell me"))
+    override_terms = (
+        "ignore", "disregard", "bypass", "override", "forget",
+        "do not follow", "don't follow", "follow new instructions",
+        "act as if",
     )
+    sensitive_terms = (
+        *_SENSITIVE_TARGET_PHRASES,
+        "hidden instructions", "confidential instructions",
+        "internal instructions", "private context",
+        "protected information", "secret value",
+    )
+    extraction_terms = (
+        "reveal", "show", "print", "give", "provide", "tell me",
+        "disclose", "output", "repeat", "expose", "what are",
+    )
+    protected_context_terms = (
+        "system prompt", "developer message", "system instructions",
+        "developer instructions", "hidden instructions",
+        "internal instructions",
+    )
+
+    override = (
+        any(term in normalized for term in override_terms)
+        or bool(_INSTRUCTION_OVERRIDE_RE.search(normalized))
+    )
+    sensitive = any(term in normalized for term in sensitive_terms)
+    extraction = any(term in normalized for term in extraction_terms)
+    protected_context = any(
+        term in normalized for term in protected_context_terms
+    )
+
+    return (override and sensitive) or (protected_context and extraction)
 
 
 @dataclass(frozen=True)
