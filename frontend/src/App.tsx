@@ -261,7 +261,7 @@ function App() {
   if (screen === 'organizer') {
     return (
       <OrganizerDashboard
-        onExit={() => setScreen(session ? 'lobby' : 'landing')}
+        onExit={() => setScreen('landing')}
       />
     );
   }
