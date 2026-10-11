@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.services.score_service import apply_score_floor
+
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -157,7 +159,7 @@ def _sync_retest_score(run: ChallengeRun, retest: Retest) -> None:
     # C1's secure-phase score is 55. Retest points are earned incrementally
     # and remain earned if a later retest objective still needs work.
     discovery_points = 10 if (run.runtime_state or {}).get("discovery_completed") else 0
-    run.score = max(run.score, 55 + discovery_points + retest.score)
+    apply_score_floor(run, 55 + discovery_points + retest.score)
 
 
 def _finish_if_complete(db: Session, session, run, retest) -> bool:
@@ -166,7 +168,7 @@ def _finish_if_complete(db: Session, session, run, retest) -> bool:
         _sync_retest_score(run, retest)
         retest.completed_at = datetime.now(timezone.utc)
         discovery_points = 10 if (run.runtime_state or {}).get("discovery_completed") else 0
-        run.score = max(run.score, 90 + discovery_points)
+        apply_score_floor(run, 90 + discovery_points)
         run.current_phase = "completed"
         run.state = "completed"
         run.completed_at = datetime.now(timezone.utc)

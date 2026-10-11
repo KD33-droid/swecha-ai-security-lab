@@ -9,9 +9,10 @@ import type {
   Session,
 } from './lib/types';
 import ChallengeWorkspace from './components/challenge/ChallengeWorkspace';
+import OrganizerDashboard from './components/organizer/OrganizerDashboard';
 import './style.css';
 
-type Screen = 'landing' | 'join' | 'lobby' | 'challenge';
+type Screen = 'landing' | 'join' | 'lobby' | 'challenge' | 'organizer';
 
 const CHALLENGES: ChallengeDefinition[] = [
   {
@@ -275,6 +276,14 @@ function App() {
     );
   }
 
+  if (screen === 'organizer') {
+    return (
+      <OrganizerDashboard
+        onExit={() => setScreen(session ? 'lobby' : 'landing')}
+      />
+    );
+  }
+
   if (screen === 'lobby' && session) {
     return (
       <main className="app-shell">
@@ -338,7 +347,7 @@ function App() {
                 setScreen('join');
               }}
             >
-              Change Team / Rejoin
+              Change team / rejoin  →
             </button>
           </div>
 
@@ -483,7 +492,14 @@ function App() {
             className="primary-button"
             onClick={() => setScreen('join')}
           >
-            Enter Lab
+            Student
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => setScreen('organizer')}
+          >
+            Admin
           </button>
         </div>
 
@@ -498,10 +514,6 @@ function App() {
             <strong>03</strong>
           </div>
 
-          <div>
-            <span>MAX SCORE</span>
-            <strong>100</strong>
-          </div>
         </div>
       </section>
     </main>

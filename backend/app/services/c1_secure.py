@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.services.score_service import apply_score_floor
+
 from uuid import UUID
 
 from sqlalchemy import select
@@ -69,7 +71,7 @@ def _sync_secure_score(run: ChallengeRun) -> None:
     if any_protective_control_enabled(runtime.get("policies", {})):
         score += 20
 
-    run.score = max(run.score, score)
+    apply_score_floor(run, score)
 
 
 def set_root_cause(

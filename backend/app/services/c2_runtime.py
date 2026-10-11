@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from app.services.score_service import apply_score_floor
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -32,10 +34,10 @@ def message(db: Session, token: str, run_id: UUID, user_message: str) -> dict:
     db.add(attempt)
     if discovery and not runtime.get("discovery_points_awarded"):
         runtime["discovery_points_awarded"] = True
-        run.score = max(run.score, 10)
+        apply_score_floor(run, 10)
     if leaked:
         run.current_phase = "secure"
-        run.score = max(run.score, 20 + (10 if runtime.get("discovery_points_awarded") else 0))
+        apply_score_floor(run, 20 + (10 if runtime.get("discovery_points_awarded") else 0))
     db.add(LabEvent(workshop_id=session.workshop_id, team_id=session.team_id, session_id=session.id, challenge_run_id=run.id, event_type="C2_AGENT_RESPONSE", actor="agent", payload={"poisoned_doc_retrieved": discovery, "secret_disclosed": leaked}))
     db.commit()
     return {"run_id": run.id, "message": reply.text, "phase": run.current_phase, "state": run.state, "score": run.score, "objective_completed": leaked, "discovery_completed": bool(runtime.get("poisoned_doc_discovered")), "discovery_points_awarded": 10 if runtime.get("discovery_points_awarded") else 0}
@@ -49,20 +51,13 @@ def secure(db: Session, token: str, run_id: UUID, root_cause: str | None = None,
         runtime["root_cause"] = root_cause
         runtime["root_cause_correct"] = root_cause in {"indirect_prompt_injection", "trusted_retrieved_content", "rag_content_as_instructions"}
         db.add(LabEvent(workshop_id=session.workshop_id, team_id=session.team_id, session_id=session.id, challenge_run_id=run.id, event_type="ROOT_CAUSE_SUBMITTED", actor="participant", payload={"root_cause": root_cause, "correct": runtime["root_cause_correct"]}))
-        if runtime["root_cause_correct"]: run.score = max(run.score, 35 + (10 if runtime.get("discovery_points_awarded") else 0))
+        if runtime["root_cause_correct"]: apply_score_floor(run, 35 + (10 if runtime.get("discovery_points_awarded") else 0))
     if controls is not None:
-        print(
-            "C2_SCORE_DEBUG before:",
-            {"score": run.score,
-             "root_cause_correct": runtime.get("root_cause_correct"),
-             "discovery_points_awarded": runtime.get("discovery_points_awarded")},
-            flush=True,
-        )
         normalized = normalize_controls(runtime.get("policies", {}), controls)
         runtime["policies"] = normalized
         mitigation = any(v.get("enabled") for v in normalized.values())
         if mitigation:
-            run.score = max(run.score, (55 if runtime.get("root_cause_correct") else 40) + (10 if runtime.get("discovery_points_awarded") else 0))
+            apply_score_floor(run, (55 if runtime.get("root_cause_correct") else 40) + (10 if runtime.get("discovery_points_awarded") else 0))
         db.add(LabEvent(workshop_id=session.workshop_id, team_id=session.team_id, session_id=session.id, challenge_run_id=run.id, event_type="POLICY_CHANGED", actor="participant", payload={"policies": normalized, "mitigation_configured": mitigation}))
     run.runtime_state = runtime
     db.commit()
@@ -104,12 +99,9 @@ def retest(db: Session, token: str, run_id: UUID, message_text: str) -> dict:
     runtime["retest_attack_passed"] = passed
     run.runtime_state = runtime
 
-    run.score = max(
-        run.score,
-        55
+    apply_score_floor(run, 55
         + (10 if runtime.get("discovery_points_awarded") else 0)
-        + (25 if passed else 0),
-    )
+        + (25 if passed else 0))
 
     if not passed:
         run.current_phase = "secure"
@@ -152,7 +144,7 @@ def functionality(db: Session, token: str, run_id: UUID, message_text: str) -> d
     runtime["retest_functionality_passed"] = passed
     run.runtime_state = runtime
     if passed and runtime.get("retest_attack_passed"):
-        run.score = max(run.score, 90 + (10 if runtime.get("discovery_points_awarded") else 0)); run.current_phase = "completed"; run.state = "completed"
+        apply_score_floor(run, 90 + (10 if runtime.get("discovery_points_awarded") else 0)); run.current_phase = "completed"; run.state = "completed"
     elif not passed: run.current_phase = "secure"
     db.commit()
     return {"run_id": run.id, "phase": run.current_phase, "state": run.state, "score": run.score, "passed": passed, "challenge_completed": run.state == "completed", "message": reply.text}

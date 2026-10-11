@@ -264,4 +264,99 @@ export async function sendFunctionalityTest(
   });
 }
 
+
+
+export interface HintItem {
+  level: number;
+  text: string;
+  penalty: number;
+}
+
+export interface HintStatus {
+  run_id: string;
+  challenge_slug: string;
+  score: number;
+  hint_penalty: number;
+  hints: HintItem[];
+  next_level: number | null;
+}
+
+export async function getHintStatus(
+  sessionToken: string,
+  runId: string,
+  challengeSlug: string,
+): Promise<HintStatus> {
+  const query = new URLSearchParams({
+    session_token: sessionToken,
+    run_id: runId,
+    challenge_slug: challengeSlug,
+  });
+  return apiRequest<HintStatus>(`/hints/status?${query.toString()}`);
+}
+
+export async function revealHint(
+  sessionToken: string,
+  runId: string,
+  challengeSlug: string,
+  level: number,
+): Promise<HintStatus> {
+  return apiRequest<HintStatus>('/hints/reveal', {
+    method: 'POST',
+    body: JSON.stringify({
+      session_token: sessionToken,
+      run_id: runId,
+      challenge_slug: challengeSlug,
+      level,
+    }),
+  });
+}
+
 export { API_BASE_URL };
+
+
+export interface OrganizerLoginResponse {
+  access_token: string;
+  token_type: string;
+  role: "organizer" | "ta";
+  expires_in: number;
+}
+
+export interface OrganizerWorkshop {
+  id: string;
+  name: string;
+  status: string;
+  leaderboard_enabled: boolean;
+}
+
+export interface OrganizerWorkshopList {
+  items: OrganizerWorkshop[];
+  staff_role: "organizer" | "ta";
+}
+
+export async function organizerLogin(
+  username: string,
+  password: string,
+): Promise<OrganizerLoginResponse> {
+  return apiRequest<OrganizerLoginResponse>("/organizer/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+export async function listOrganizerWorkshops(
+  token: string,
+): Promise<OrganizerWorkshopList> {
+  return apiRequest<OrganizerWorkshopList>("/organizer/workshops", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function getWorkshopMonitoring<T = Record<string, unknown>>(
+  token: string,
+  workshopId: string,
+): Promise<T> {
+  return apiRequest<T>(
+    `/organizer/workshops/${encodeURIComponent(workshopId)}/monitoring`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+}

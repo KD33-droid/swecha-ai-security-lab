@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 
 import {
   getChallengeStatus,
+  getHintStatus,
+  revealHint,
   resetChallenge,
   sendChallengeMessage,
   sendFunctionalityTest,
@@ -15,6 +17,7 @@ import type {
   ChallengeDefinition,
   ChallengePhase,
   ChallengeStatus,
+  HintStatus,
   Session,
 } from '../../lib/types';
 
@@ -157,6 +160,9 @@ export default function ChallengeWorkspace({
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [hintStatus, setHintStatus] = useState<HintStatus | null>(null);
+  const [hintBusy, setHintBusy] = useState(false);
+  const [hintError, setHintError] = useState('');
 
   const [retestMessage, setRetestMessage] = useState('');
   const [functionalityMessage, setFunctionalityMessage] = useState('');
@@ -198,6 +204,22 @@ export default function ChallengeWorkspace({
     });
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    getHintStatus(
+      session.session_token,
+      runId,
+      challenge.slug,
+    ).then((result) => {
+      if (!cancelled) setHintStatus(result);
+    }).catch((err) => {
+      if (!cancelled) {
+        setHintError(err instanceof Error ? err.message : 'Could not load hints.');
+      }
+    });
+    return () => { cancelled = true; };
+  }, [session.session_token, runId, challenge.slug]);
+
   async function execute(action: () => Promise<void>) {
     setBusy(true);
     setError('');
@@ -209,6 +231,26 @@ export default function ChallengeWorkspace({
       setError(err instanceof Error ? err.message : 'Request failed.');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleRevealHint(level: number) {
+    if (hintBusy) return;
+    setHintBusy(true);
+    setHintError('');
+    try {
+      const result = await revealHint(
+        session.session_token,
+        runId,
+        challenge.slug,
+        level,
+      );
+      setHintStatus(result);
+      setStatus((current) => current ? { ...current, score: result.score } : current);
+    } catch (err) {
+      setHintError(err instanceof Error ? err.message : 'Could not reveal hint.');
+    } finally {
+      setHintBusy(false);
     }
   }
 
@@ -330,6 +372,8 @@ export default function ChallengeWorkspace({
 
     await execute(async () => {
       await resetChallenge(session.session_token, runId);
+      setHintStatus(await getHintStatus(session.session_token, runId, challenge.slug));
+      setHintError('');
       setChat([]);
       setRootCause('');
       setControls({});
@@ -514,11 +558,39 @@ export default function ChallengeWorkspace({
             </div>
 
             <div className="hint-box">
-              <strong>Think like an attacker.</strong>
+              <strong>Progressive hints</strong>
               <p>
-                Identify what the agent trusts, what it can access, and
-                where its instructions can be influenced.
+                Hints are optional. Each reveal deducts points from your score.
               </p>
+              <p>
+                <strong>Hint penalty:</strong> −{hintStatus?.hint_penalty ?? 0}
+                {' points'} · <strong>Score:</strong> {hintStatus?.score ?? status.score}
+              </p>
+
+              {hintStatus?.hints.map((hint) => (
+                <div className="revealed-hint" key={hint.level}>
+                  <strong>Hint {hint.level} · −{hint.penalty} points</strong>
+                  <p>{hint.text}</p>
+                </div>
+              ))}
+
+              {hintStatus?.next_level && (
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={hintBusy || busy}
+                  onClick={() => handleRevealHint(hintStatus.next_level!)}
+                >
+                  {hintBusy
+                    ? 'Revealing…'
+                    : `Reveal Hint ${hintStatus.next_level} (−${[5, 10, 15][hintStatus.next_level - 1]} points)`}
+                </button>
+              )}
+
+              {hintStatus?.next_level === null && hintStatus && (
+                <p>All hints revealed.</p>
+              )}
+              {hintError && <p className="error">{hintError}</p>}
             </div>
           </aside>
         </section>

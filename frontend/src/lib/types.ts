@@ -82,6 +82,21 @@ export interface RetestResponse {
   message?: string;
 }
 
+export interface HintItem {
+  level: number;
+  text: string;
+  penalty: number;
+}
+
+export interface HintStatus {
+  run_id: string;
+  challenge_slug: string;
+  score: number;
+  hint_penalty: number;
+  hints: HintItem[];
+  next_level: number | null;
+}
+
 export interface ApiError {
   detail: string;
 }

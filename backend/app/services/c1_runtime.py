@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.services.score_service import apply_score_floor
+
 import re
 from uuid import UUID
 from sqlalchemy import select
@@ -37,7 +39,7 @@ def _score_discovery_award(run: ChallengeRun) -> bool:
         return False
     runtime["discovery_points_awarded"] = True
     run.runtime_state = runtime
-    run.score = max(run.score, 10)
+    apply_score_floor(run, 10)
     return True
 
 
@@ -137,7 +139,7 @@ def send_c1_message(db: Session, session_token: str, run_id: UUID, message: str)
         runtime = dict(run.runtime_state or {})
         runtime["protected_secret_disclosed"] = True
         run.runtime_state = runtime
-        run.score = max(run.score, 20 + (10 if (run.runtime_state or {}).get("discovery_completed") else 0))
+        apply_score_floor(run, 20 + (10 if (run.runtime_state or {}).get("discovery_completed") else 0))
         db.add(
             LabEvent(
                 workshop_id=session.workshop_id,

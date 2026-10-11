@@ -8,6 +8,11 @@ class Settings(BaseSettings):
     )
     redis_url: str = "redis://localhost:6379/0"
     environment: str = "development"
+    organizer_auth_secret: str = ""
+    organizer_username: str = ""
+    organizer_password_hash: str = ""
+    ta_username: str = ""
+    ta_password_hash: str = ""
 
     @field_validator("database_url", mode="before")
     @classmethod
