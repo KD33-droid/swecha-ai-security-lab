@@ -81,25 +81,7 @@ function App() {
     }
   });
 
-  const [screen, setScreen] = useState<Screen>(() => {
-    try {
-      const savedSession = localStorage.getItem('swecha_session');
-      const savedChallenge = localStorage.getItem('swecha_selected_challenge');
-      const savedRun = localStorage.getItem('swecha_active_run');
-
-      if (savedSession && savedChallenge && savedRun) {
-        return 'challenge';
-      }
-
-      if (savedSession) {
-        return 'lobby';
-      }
-
-      return 'landing';
-    } catch {
-      return 'landing';
-    }
-  });
+  const [screen, setScreen] = useState<Screen>('landing');
 
   const [workshopCode, setWorkshopCode] = useState('DEV-LAB');
   const [teamCode, setTeamCode] = useState('ALPHA');
