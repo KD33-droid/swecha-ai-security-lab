@@ -2,7 +2,12 @@ from pathlib import Path
 
 import yaml
 
-CHALLENGE_ROOT = Path("/challenges")
+REPO_CHALLENGE_ROOT = Path(__file__).resolve().parents[3] / "challenges"
+CHALLENGE_ROOT = (
+    Path("/challenges")
+    if Path("/challenges").is_dir()
+    else REPO_CHALLENGE_ROOT
+)
 
 
 class ChallengeRegistry:

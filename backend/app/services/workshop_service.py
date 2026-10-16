@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.models import Challenge, ChallengeRun, LabEvent, LabSession, Participant, Team, Workshop, WorkshopChallenge
 
+from app.services.challenge_timer import CHALLENGE_DURATION, enforce_deadline, remaining_seconds, start_deadline, utc_now
+
 
 def join_workshop(
     db: Session,
@@ -134,18 +136,70 @@ def join_workshop(
     return workshop, team, participant, session
 
 def start_challenge(db: Session, session_token: str, challenge_slug: str):
-    session = db.scalar(select(LabSession).where(LabSession.session_token == session_token, LabSession.status == "active"))
+    # Serialize first-start requests so simultaneous clicks cannot create
+    # competing deadlines for the same participant.
+    session = db.scalar(
+        select(LabSession)
+        .where(
+            LabSession.session_token == session_token,
+            LabSession.status == "active",
+        )
+        .with_for_update()
+    )
     if not session:
         raise ValueError("Invalid session token")
-    challenge = db.scalar(select(Challenge).join(WorkshopChallenge, WorkshopChallenge.challenge_id == Challenge.id).where(WorkshopChallenge.workshop_id == session.workshop_id, WorkshopChallenge.enabled.is_(True), Challenge.slug == challenge_slug, Challenge.status == "active"))
+
+    challenge = db.scalar(
+        select(Challenge)
+        .join(WorkshopChallenge, WorkshopChallenge.challenge_id == Challenge.id)
+        .where(
+            WorkshopChallenge.workshop_id == session.workshop_id,
+            WorkshopChallenge.enabled.is_(True),
+            Challenge.slug == challenge_slug,
+            Challenge.status == "active",
+        )
+    )
     if not challenge:
         raise ValueError("Challenge is not enabled for this workshop")
+
+    now = utc_now()
+    if session.deadline_at is None:
+        session.started_at = now
+        session.deadline_at = start_deadline(now)
+
+    seconds_left = remaining_seconds(session.deadline_at, now)
+    if seconds_left is None or seconds_left <= 0:
+        # Persist the session deadline if this was the first request, but
+        # never create another run once the shared timer has expired.
+        db.commit()
+        raise ValueError("Challenge time has expired")
+
     from app.services.challenge_runtime import initial_runtime
+
     runtime_state = initial_runtime(challenge.slug)
-    run = ChallengeRun(session_id=session.id, challenge_id=challenge.id, challenge_version=challenge.version, state="active", current_phase="break", runtime_state=runtime_state, score=0)
+    run = ChallengeRun(
+        session_id=session.id,
+        challenge_id=challenge.id,
+        challenge_version=challenge.version,
+        state="active",
+        current_phase="break",
+        runtime_state=runtime_state,
+        score=0,
+        deadline_at=session.deadline_at,
+    )
     db.add(run)
     db.flush()
-    db.add(LabEvent(workshop_id=session.workshop_id, team_id=session.team_id, session_id=session.id, challenge_run_id=run.id, event_type="CHALLENGE_STARTED", actor="participant", payload={"challenge": challenge.slug, "version": challenge.version}))
+    db.add(
+        LabEvent(
+            workshop_id=session.workshop_id,
+            team_id=session.team_id,
+            session_id=session.id,
+            challenge_run_id=run.id,
+            event_type="CHALLENGE_STARTED",
+            actor="participant",
+            payload={"challenge": challenge.slug, "version": challenge.version},
+        )
+    )
     db.commit()
     return run, challenge
 
@@ -165,6 +219,18 @@ def reset_challenge_run(db: Session, session_token: str, run_id):
     if not run:
         raise ValueError("Challenge run not found")
 
+    enforce_deadline(db, run)
+
+    from app.services.score_service import update_best_score
+
+    # Snapshot the attempt before reset clears its current score and phase.
+    attempt_score = int(run.score or 0)
+    update_best_score(run)
+    attempt_best_score = int(run.best_score or 0)
+    attempt_phase = run.current_phase
+    attempt_state = run.state
+    attempt_number = (run.reset_count or 0) + 1
+
     from app.services.challenge_runtime import initial_runtime
     runtime_state = initial_runtime(run_challenge_slug(db, run))
     run.runtime_state = runtime_state
@@ -177,7 +243,14 @@ def reset_challenge_run(db: Session, session_token: str, run_id):
     db.add(LabEvent(
         workshop_id=session.workshop_id, team_id=session.team_id, session_id=session.id,
         challenge_run_id=run.id, event_type="CHALLENGE_RESET", actor="participant",
-        payload={"reset_count": run.reset_count},
+        payload={
+            "reset_count": run.reset_count,
+            "attempt_number": attempt_number,
+            "attempt_score": attempt_score,
+            "best_score": attempt_best_score,
+            "phase": attempt_phase,
+            "state": attempt_state,
+        },
     ))
     db.commit()
     return run

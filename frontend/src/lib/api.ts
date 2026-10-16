@@ -3,9 +3,12 @@ import type {
   ChallengeDefinition,
   ChallengeRun,
   ChallengeStatus,
+  ChallengePhase,
+  ChallengeState,
   RetestResponse,
   SecureResponse,
   Session,
+  WorkshopTimer,
 } from './types';
 
 const API_BASE_URL = (
@@ -47,6 +50,13 @@ export async function apiRequest<T>(
   }
 
   return data as T;
+}
+
+export async function getWorkshopTimer(
+  sessionToken: string,
+): Promise<WorkshopTimer> {
+  const query = new URLSearchParams({ session_token: sessionToken });
+  return apiRequest<WorkshopTimer>(`/workshops/timer?${query.toString()}`);
 }
 
 export async function startChallenge(
@@ -358,5 +368,42 @@ export async function getWorkshopMonitoring<T = Record<string, unknown>>(
   return apiRequest<T>(
     `/organizer/workshops/${encodeURIComponent(workshopId)}/monitoring`,
     { headers: { Authorization: `Bearer ${token}` } },
+  );
+}
+
+export interface ChallengeAttemptHistoryItem {
+  attempt_number: number;
+  score: number;
+  best_score: number;
+  phase: ChallengePhase;
+  state: ChallengeState;
+  reset_at: string | null;
+}
+
+export interface ChallengeHistoryItem {
+  run_id: string;
+  challenge_slug: string;
+  challenge_name: string;
+  challenge_version: string;
+  phase: ChallengePhase;
+  state: ChallengeState;
+  score: number;
+  best_score: number;
+  reset_count: number;
+  attempts: ChallengeAttemptHistoryItem[];
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface ChallengeHistoryResponse {
+  items: ChallengeHistoryItem[];
+}
+
+export async function getChallengeHistory(
+  sessionToken: string,
+): Promise<ChallengeHistoryResponse> {
+  const query = new URLSearchParams({ session_token: sessionToken });
+  return apiRequest<ChallengeHistoryResponse>(
+    `/workshops/challenges/history?${query.toString()}`,
   );
 }

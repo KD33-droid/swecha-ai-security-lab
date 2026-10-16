@@ -1,5 +1,5 @@
-export type ChallengePhase = 'break' | 'secure' | 'retest';
-export type ChallengeState = 'locked' | 'active' | 'completed';
+export type ChallengePhase = 'break' | 'secure' | 'retest' | 'expired';
+export type ChallengeState = 'locked' | 'active' | 'completed' | 'expired';
 
 export interface ChallengeDefinition {
   slug: string;
@@ -10,6 +10,15 @@ export interface ChallengeDefinition {
   order?: number;
 }
 
+export interface WorkshopTimer {
+  started: boolean;
+  started_at: string | null;
+  deadline_at: string | null;
+  remaining_seconds: number;
+  timer_warning: boolean;
+  expired: boolean;
+}
+
 export interface ChallengeRun {
   run_id: string;
   challenge_slug: string;
@@ -17,6 +26,9 @@ export interface ChallengeRun {
   phase: ChallengePhase;
   state: ChallengeState;
   score: number;
+  deadline_at?: string | null;
+  remaining_seconds?: number | null;
+  timer_warning?: boolean;
 }
 
 export interface Session {
@@ -32,6 +44,10 @@ export interface ChallengeStatus {
   phase: ChallengePhase;
   state: ChallengeState;
   score: number;
+  best_score?: number;
+  deadline_at?: string | null;
+  remaining_seconds?: number | null;
+  timer_warning?: boolean;
 
   discovery_completed?: boolean;
   discovery_points_awarded?: number;

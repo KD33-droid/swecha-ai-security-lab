@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.services.score_service import apply_score_floor
+from app.services.challenge_timer import enforce_deadline
 
 from datetime import datetime, timezone
 from uuid import UUID
@@ -66,6 +67,7 @@ def _response(
 
 def start_retest(db: Session, session_token: str, run_id: UUID) -> dict:
     session, run = _load_retest_run(db, session_token, run_id)
+    enforce_deadline(db, run)
 
     if run.state != "active":
         raise ValueError("Challenge run is not active")
@@ -117,6 +119,7 @@ def start_retest(db: Session, session_token: str, run_id: UUID) -> dict:
 
 def _ensure_retest(db: Session, session_token: str, run_id: UUID):
     session, run = _load_retest_run(db, session_token, run_id)
+    enforce_deadline(db, run)
     if run.state != "active" or run.current_phase != "retest":
         raise ValueError("Challenge run is not in RETEST phase")
 

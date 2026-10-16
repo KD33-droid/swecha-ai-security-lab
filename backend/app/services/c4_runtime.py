@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.models import ChallengeRun,LabSession,AttackAttempt,LabEvent,ToolCall
+from app.services.challenge_timer import enforce_deadline
 from app.services.c4_agent import CustomerAgent
 from app.services.c4_policy import normalize_controls, is_cross_customer_attack
 
@@ -15,6 +16,7 @@ def load(db,t,r):
 
 def message(db,t,r,msg):
  s,run=load(db,t,r)
+ enforce_deadline(db,run)
  if run.current_phase!='break' or run.state!='active': raise ValueError('Challenge run is not accepting BREAK-phase messages')
  rt=dict(run.runtime_state or {}); reply=CustomerAgent(rt['principal_id'],rt['customers']).respond(msg,rt['policies'])
  for c in reply.tool_calls: db.add(ToolCall(challenge_run_id=run.id,tool=c['tool'],arguments=c['arguments'],authorization_result='ALLOW',execution_result=c['result'],risk_level=c.get('risk_level','LOW')))
@@ -27,6 +29,7 @@ def message(db,t,r,msg):
 
 def secure(db,t,r,root_cause=None,controls=None):
  s,run=load(db,t,r)
+ enforce_deadline(db,run)
  if run.current_phase!='secure': raise ValueError('Challenge run is not in SECURE phase')
  rt=dict(run.runtime_state or {})
  if root_cause is not None:
@@ -39,6 +42,7 @@ def secure(db,t,r,root_cause=None,controls=None):
 
 def start_retest(db,t,r):
  s,run=load(db,t,r); rt=dict(run.runtime_state or {})
+ enforce_deadline(db,run)
  if run.current_phase!="secure": raise ValueError("Challenge run is not in SECURE phase")
  if not rt.get("root_cause_correct"): raise ValueError("Submit the correct root cause before RETEST")
  if not any(v.get("enabled") for v in rt.get("policies", {}).values()): raise ValueError("Configure a protective control before RETEST")
@@ -48,6 +52,7 @@ def start_retest(db,t,r):
 
 def retest(db,t,r,msg):
     s,run=load(db,t,r)
+    enforce_deadline(db,run)
     rt=dict(run.runtime_state or {})
 
     if run.current_phase!='retest':
@@ -92,6 +97,7 @@ def retest(db,t,r,msg):
 
 def functionality(db,t,r,msg):
  s,run=load(db,t,r); rt=dict(run.runtime_state or {})
+ enforce_deadline(db,run)
  if run.current_phase!='retest': raise ValueError('Challenge run is not in RETEST phase')
  reply=CustomerAgent(rt['principal_id'],rt['customers']).respond(msg,rt['policies']); passed=rt['principal_id'] in reply.text and rt['customers'][rt['principal_id']]['email'] in reply.text and not reply.unauthorized_disclosure; rt['retest_functionality_passed']=passed; run.runtime_state=rt
  if passed and rt.get('retest_attack_passed'): apply_score_floor(run, 90+(10 if rt.get('discovery_points_awarded') else 0)); run.current_phase='completed'; run.state='completed'

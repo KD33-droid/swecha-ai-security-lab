@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   getChallengeStatus,
@@ -152,12 +152,15 @@ export default function ChallengeWorkspace({
 }: Props) {
   const [status, setStatus] = useState<ChallengeStatus | null>(null);
   const [phase, setPhase] = useState<ChallengePhase>('break');
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
 
   const [message, setMessage] = useState('');
   const [rootCause, setRootCause] = useState('');
   const [controls, setControls] = useState<Record<string, boolean>>({});
 
   const [chat, setChat] = useState<ChatMessage[]>([]);
+  const chatHistoryRef = useRef<HTMLDivElement | null>(null);
+  const shouldAutoScrollRef = useRef(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [hintStatus, setHintStatus] = useState<HintStatus | null>(null);
@@ -186,6 +189,7 @@ export default function ChallengeWorkspace({
 
     setStatus(result);
     setPhase(result.phase);
+    setRemainingSeconds(result.remaining_seconds ?? null);
 
     if (result.controls) {
       const flattened: Record<string, boolean> = {};
@@ -205,6 +209,39 @@ export default function ChallengeWorkspace({
   }, []);
 
   useEffect(() => {
+    const countdown = window.setInterval(() => {
+      setRemainingSeconds((seconds) =>
+        seconds === null ? null : Math.max(0, seconds - 1),
+      );
+    }, 1000);
+
+    const sync = window.setInterval(() => {
+      refreshStatus().catch((err) => {
+        setError(err instanceof Error ? err.message : 'Failed to refresh challenge status.');
+      });
+    }, 15000);
+
+    return () => {
+      window.clearInterval(countdown);
+      window.clearInterval(sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    const container = chatHistoryRef.current;
+    if (!container || !shouldAutoScrollRef.current) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+  }, [chat]);
+
+  function handleChatScroll() {
+    const container = chatHistoryRef.current;
+    if (!container) return;
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    shouldAutoScrollRef.current = distanceFromBottom < 80;
+  }
+
+  useEffect(() => {
     let cancelled = false;
     getHintStatus(
       session.session_token,
@@ -221,6 +258,11 @@ export default function ChallengeWorkspace({
   }, [session.session_token, runId, challenge.slug]);
 
   async function execute(action: () => Promise<void>) {
+    if (status?.state === 'expired' || remainingSeconds === 0) {
+      setError('Challenge time has expired. Your score has been preserved.');
+      return;
+    }
+
     setBusy(true);
     setError('');
 
@@ -235,6 +277,10 @@ export default function ChallengeWorkspace({
   }
 
   async function handleRevealHint(level: number) {
+    if (status?.state === 'expired' || remainingSeconds === 0) {
+      setHintError('Challenge time has expired. Hints are no longer available.');
+      return;
+    }
     if (hintBusy) return;
     setHintBusy(true);
     setHintError('');
@@ -385,6 +431,25 @@ export default function ChallengeWorkspace({
   const effectiveSlug =
     API_SLUG_MAP[challenge.slug] ?? challenge.slug;
 
+  const expired = status?.state === 'expired' || remainingSeconds === 0;
+  const timerWarning =
+    remainingSeconds !== null &&
+    remainingSeconds <= 600 &&
+    remainingSeconds > 0;
+  const timerDisplay =
+    remainingSeconds === null
+      ? '--:--'
+      : `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`;
+
+  const phaseProgress =
+    status?.state === 'completed'
+      ? 100
+      : phase === 'break'
+        ? 33
+        : phase === 'secure'
+          ? 67
+          : 90;
+
   if (!status) {
     return (
       <div className="screen">
@@ -412,12 +477,35 @@ export default function ChallengeWorkspace({
           </p>
         </div>
 
+        <div
+          className={`challenge-timer${timerWarning ? ' warning' : ''}${expired ? ' expired' : ''}`}
+          role="timer"
+          aria-live="off"
+        >
+          <span>Time remaining</span>
+          <strong>{expired ? '00:00' : timerDisplay}</strong>
+          {timerWarning && !expired && (
+            <small>10 minutes or less remaining</small>
+          )}
+        </div>
+
         <div className="challenge-score">
-          <span>Score</span>
+          <span>Current Score</span>
           <strong>{status.score}</strong>
           <small>/ 100</small>
+          <small>Best: {Math.max(status.best_score ?? 0, status.score)}/100</small>
         </div>
       </header>
+
+      {expired && (
+        <div className="challenge-expired-banner" role="alert">
+          <strong>Challenge time expired</strong>
+          <p>
+            This attempt has ended. Your current score and best score have been
+            preserved. You can return to the lobby to review your progress.
+          </p>
+        </div>
+      )}
 
       <div className="phase-bar">
         {(['break', 'secure', 'retest'] as ChallengePhase[]).map(
@@ -435,6 +523,25 @@ export default function ChallengeWorkspace({
         )}
       </div>
 
+      <section className="challenge-progress" aria-label="Challenge progress">
+        <div className="challenge-progress-label">
+          <span>Overall progress</span>
+          <strong>{phaseProgress}%</strong>
+        </div>
+        <div
+          className="challenge-progress-track"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={phaseProgress}
+        >
+          <div
+            className="challenge-progress-fill"
+            style={{ width: `${phaseProgress}%` }}
+          />
+        </div>
+      </section>
+
       {error && (
         <div className="error-banner">
           {error}
@@ -442,7 +549,7 @@ export default function ChallengeWorkspace({
       )}
 
       {phase === 'break' && (
-        <section className="workspace-grid">
+        <section key={phase} className="workspace-grid phase-panel-enter">
           <div className="panel chat-panel">
             <div className="panel-header">
               <div>
@@ -452,7 +559,11 @@ export default function ChallengeWorkspace({
               <span className="badge">Untrusted Agent</span>
             </div>
 
-            <div className="chat-history">
+            <div
+              className="chat-history"
+              ref={chatHistoryRef}
+              onScroll={handleChatScroll}
+            >
               {chat.length === 0 && (
                 <div className="empty-chat">
                   Interact with the agent. Your objective is to discover
@@ -483,7 +594,7 @@ export default function ChallengeWorkspace({
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
                 placeholder="Send a message to the agent…"
-                disabled={busy}
+                disabled={busy || expired}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && !event.shiftKey) {
                     event.preventDefault();
@@ -495,7 +606,7 @@ export default function ChallengeWorkspace({
               <button
                 className="primary-button"
                 onClick={handleMessage}
-                disabled={busy || !message.trim()}
+                disabled={busy || expired || !message.trim()}
               >
                 Send
               </button>
@@ -578,7 +689,7 @@ export default function ChallengeWorkspace({
                 <button
                   className="primary-button"
                   type="button"
-                  disabled={hintBusy || busy}
+                  disabled={hintBusy || busy || expired}
                   onClick={() => handleRevealHint(hintStatus.next_level!)}
                 >
                   {hintBusy
@@ -597,7 +708,7 @@ export default function ChallengeWorkspace({
       )}
 
       {phase === 'secure' && (
-        <section className="workspace-grid">
+        <section key={phase} className="workspace-grid phase-panel-enter">
           <div className="panel secure-panel">
             <span className="eyebrow">SECURE</span>
             <h2>Fix the Vulnerability</h2>
@@ -621,7 +732,7 @@ export default function ChallengeWorkspace({
               <button
                 className="secondary-button"
                 onClick={handleRootCause}
-                disabled={busy || !rootCause}
+                disabled={busy || expired || !rootCause}
               >
                 Submit Root Cause
               </button>
@@ -635,6 +746,7 @@ export default function ChallengeWorkspace({
                   <label className="control-row" key={control}>
                     <input
                       type="checkbox"
+                      disabled={expired}
                       checked={Boolean(controls[control])}
                       onChange={(event) =>
                         setControls((current) => ({
@@ -652,7 +764,7 @@ export default function ChallengeWorkspace({
               <button
                 className="primary-button"
                 onClick={handleControls}
-                disabled={busy}
+                disabled={busy || expired}
               >
                 Apply Controls
               </button>
@@ -681,6 +793,7 @@ export default function ChallengeWorkspace({
               onClick={handleStartRetest}
               disabled={
                 busy ||
+                expired ||
                 !status.root_cause_correct ||
                 !status.mitigation_configured
               }
@@ -692,7 +805,7 @@ export default function ChallengeWorkspace({
       )}
 
       {phase === 'retest' && (
-        <section className="workspace-grid">
+        <section key={phase} className="workspace-grid phase-panel-enter">
           <div className="panel">
             <span className="eyebrow">RETEST</span>
             <h2>Verify the Fix</h2>
@@ -710,13 +823,13 @@ export default function ChallengeWorkspace({
                   setRetestMessage(event.target.value)
                 }
                 placeholder="Enter an equivalent attack…"
-                disabled={busy}
+                disabled={busy || expired}
               />
 
               <button
                 className="primary-button"
                 onClick={handleRetestAttack}
-                disabled={busy || !retestMessage.trim()}
+                disabled={busy || expired || !retestMessage.trim()}
               >
                 Run Attack
               </button>
@@ -731,13 +844,13 @@ export default function ChallengeWorkspace({
                   setFunctionalityMessage(event.target.value)
                 }
                 placeholder="Enter a legitimate request that should still work…"
-                disabled={busy}
+                disabled={busy || expired}
               />
 
               <button
                 className="secondary-button"
                 onClick={handleFunctionality}
-                disabled={busy || !functionalityMessage.trim()}
+                disabled={busy || expired || !functionalityMessage.trim()}
               >
                 Test Functionality
               </button>
@@ -783,7 +896,7 @@ export default function ChallengeWorkspace({
         <button
           className="danger-button"
           onClick={handleReset}
-          disabled={busy}
+          disabled={busy || expired}
         >
           Reset Challenge
         </button>

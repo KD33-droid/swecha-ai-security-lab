@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.services.score_service import apply_score_floor
+from app.services.challenge_timer import enforce_deadline
 
 import re
 from uuid import UUID
@@ -55,6 +56,7 @@ def _load_run_for_session(db: Session, session_token: str, run_id: UUID):
 
 def send_c1_message(db: Session, session_token: str, run_id: UUID, message: str) -> dict:
     session, run = _load_run_for_session(db, session_token, run_id)
+    enforce_deadline(db, run)
     if run.state != "active" or run.current_phase != "break":
         raise ValueError("Challenge run is not accepting BREAK-phase messages")
 

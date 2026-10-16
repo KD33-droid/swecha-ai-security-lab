@@ -21,6 +21,42 @@ router = APIRouter(
 )
 
 
+def aggregate_team_scores(participant_scores: list[dict[str, int]]):
+    """Average participant totals and per-challenge best scores.
+
+    Missing challenge scores count as zero. Each participant contributes
+    their best score for each challenge, not the sum of repeated runs.
+    """
+    participant_count = len(participant_scores)
+    if participant_count == 0:
+        return 0, []
+
+    challenge_slugs = sorted({
+        slug
+        for scores in participant_scores
+        for slug in scores
+    })
+
+    challenge_scores = [
+        {
+            "challenge_slug": slug,
+            "best_score": round(
+                sum(scores.get(slug, 0) for scores in participant_scores)
+                / participant_count,
+                2,
+            ),
+        }
+        for slug in challenge_slugs
+    ]
+
+    participant_totals = [
+        sum(scores.values())
+        for scores in participant_scores
+    ]
+    total_score = round(sum(participant_totals) / participant_count, 2)
+    return total_score, challenge_scores
+
+
 @router.get("/{workshop_id}/monitoring")
 def workshop_monitoring(
     workshop_id: UUID,
@@ -52,8 +88,7 @@ def workshop_monitoring(
             .order_by(Participant.display_name)
         ).all()
 
-        team_best_scores = {}
-        team_challenges = []
+        participant_best_scores = []
 
         for participant in participants:
             sessions = db.scalars(
@@ -65,6 +100,7 @@ def workshop_monitoring(
             ).all()
 
             participant_runs = []
+            individual_best_scores = {}
             for session in sessions:
                 runs = db.execute(
                     select(ChallengeRun, Challenge)
@@ -89,9 +125,10 @@ def workshop_monitoring(
                     )
 
                     score = max(0, int(run.score or 0))
-                    team_best_scores[challenge.slug] = max(
-                        team_best_scores.get(challenge.slug, 0),
-                        score,
+                    best_score = max(score, int(run.best_score or 0))
+                    individual_best_scores[challenge.slug] = max(
+                        individual_best_scores.get(challenge.slug, 0),
+                        best_score,
                     )
 
                     participant_runs.append({
@@ -99,6 +136,7 @@ def workshop_monitoring(
                         "challenge_slug": challenge.slug,
                         "challenge_name": challenge.name,
                         "score": score,
+                        "best_score": best_score,
                         "phase": run.current_phase,
                         "state": run.state,
                         "started_at": (
@@ -113,6 +151,8 @@ def workshop_monitoring(
                         "hint_count": hint_count,
                         "hint_penalty": penalty,
                     })
+
+            participant_best_scores.append(individual_best_scores)
 
             latest_runs = {}
             for run_info in participant_runs:
@@ -132,17 +172,16 @@ def workshop_monitoring(
                 "challenges": list(latest_runs.values()),
             })
 
-            team_challenges.extend(participant_runs)
 
+        total_score, challenge_scores = aggregate_team_scores(
+            participant_best_scores
+        )
         leaderboard.append({
             "team_id": str(team.id),
             "team_name": team.name,
             "participant_count": len(participants),
-            "total_score": sum(team_best_scores.values()),
-            "challenge_scores": [
-                {"challenge_slug": slug, "best_score": score}
-                for slug, score in sorted(team_best_scores.items())
-            ],
+            "total_score": total_score,
+            "challenge_scores": challenge_scores,
         })
 
     leaderboard.sort(

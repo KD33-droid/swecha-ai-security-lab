@@ -118,6 +118,8 @@ class LabSession(Base):
     status: Mapped[str] = mapped_column(String(30), default="active", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ChallengeRun(Base):
@@ -133,6 +135,8 @@ class ChallengeRun(Base):
     reset_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     runtime_state: Mapped[dict] = json_column()
     score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    best_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    deadline_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class AttackAttempt(Base):

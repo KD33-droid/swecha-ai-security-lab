@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.models import AttackAttempt, ChallengeRun, LabEvent, LabSession, ToolCall
+from app.services.challenge_timer import enforce_deadline
 from app.services.c2_agent import PoisonedDocAgent
 from app.services.c2_policy import CONTROLS, normalize_controls, is_poison_trigger
 
@@ -19,6 +20,7 @@ def load(db: Session, token: str, run_id: UUID):
 
 def message(db: Session, token: str, run_id: UUID, user_message: str) -> dict:
     session, run = load(db, token, run_id)
+    enforce_deadline(db, run)
     if run.state != "active" or run.current_phase != "break": raise ValueError("Challenge run is not accepting BREAK-phase messages")
     runtime = dict(run.runtime_state or {})
     controls = runtime.get("policies", {})
@@ -45,6 +47,7 @@ def message(db: Session, token: str, run_id: UUID, user_message: str) -> dict:
 
 def secure(db: Session, token: str, run_id: UUID, root_cause: str | None = None, controls: dict | None = None) -> dict:
     session, run = load(db, token, run_id)
+    enforce_deadline(db, run)
     if run.current_phase != "secure": raise ValueError("Challenge run is not in SECURE phase")
     runtime = dict(run.runtime_state or {})
     if root_cause is not None:
@@ -66,6 +69,7 @@ def secure(db: Session, token: str, run_id: UUID, root_cause: str | None = None,
 
 def start_retest(db: Session, token: str, run_id: UUID) -> dict:
     session, run = load(db, token, run_id)
+    enforce_deadline(db, run)
     runtime = dict(run.runtime_state or {})
     if run.current_phase != "secure": raise ValueError("Challenge run is not in SECURE phase")
     if not runtime.get("root_cause_correct"): raise ValueError("Submit the correct root cause before RETEST")
@@ -75,6 +79,7 @@ def start_retest(db: Session, token: str, run_id: UUID) -> dict:
 
 def retest(db: Session, token: str, run_id: UUID, message_text: str) -> dict:
     session, run = load(db, token, run_id)
+    enforce_deadline(db, run)
 
     if run.current_phase != "retest":
         raise ValueError("Challenge run is not in RETEST phase")
@@ -137,6 +142,7 @@ def retest(db: Session, token: str, run_id: UUID, message_text: str) -> dict:
 
 def functionality(db: Session, token: str, run_id: UUID, message_text: str) -> dict:
     session, run = load(db, token, run_id)
+    enforce_deadline(db, run)
     if run.current_phase != "retest": raise ValueError("Challenge run is not in RETEST phase")
     runtime = dict(run.runtime_state or {})
     reply = PoisonedDocAgent(runtime["secret"]).respond(message_text, runtime.get("policies", {}))

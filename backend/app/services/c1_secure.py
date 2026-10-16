@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.services.score_service import apply_score_floor
+from app.services.challenge_timer import enforce_deadline
 
 from uuid import UUID
 
@@ -81,6 +82,7 @@ def set_root_cause(
     root_cause: str,
 ) -> dict:
     session, run = load_secure_run(db, session_token, run_id)
+    enforce_deadline(db, run)
 
     correct = root_cause in CORRECT_ROOT_CAUSES
 
@@ -125,6 +127,7 @@ def set_policies(
     requested: dict,
 ) -> dict:
     session, run = load_secure_run(db, session_token, run_id)
+    enforce_deadline(db, run)
 
     current = dict((run.runtime_state or {}).get("policies", {}))
     normalized = normalize_policies(current, requested)

@@ -2,12 +2,16 @@ import { FormEvent, useState, useEffect } from 'react';
 import {
   apiRequest,
   startChallenge,
+  getChallengeHistory,
+  getWorkshopTimer,
 } from './lib/api';
 import type {
   ChallengeDefinition,
   ChallengeRun,
   Session,
+  WorkshopTimer,
 } from './lib/types';
+import type { ChallengeHistoryItem } from './lib/api';
 import ChallengeWorkspace from './components/challenge/ChallengeWorkspace';
 import OrganizerDashboard from './components/organizer/OrganizerDashboard';
 import './style.css';
@@ -86,10 +90,25 @@ function App() {
   const [workshopCode, setWorkshopCode] = useState('DEV-LAB');
   const [teamCode, setTeamCode] = useState('ALPHA');
   const [displayName, setDisplayName] = useState('');
+  const [joinMode, setJoinMode] = useState<'new' | 'resume'>('new');
+  const [resumeSessionToken, setResumeSessionToken] = useState('');
+  const [availableSessions, setAvailableSessions] = useState<Session[]>([]);
 
   const [joining, setJoining] = useState(false);
   const [startingChallenge, setStartingChallenge] = useState(false);
   const [error, setError] = useState('');
+  const [challengeHistory, setChallengeHistory] = useState<ChallengeHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [workshopTimer, setWorkshopTimer] = useState<WorkshopTimer>({
+    started: false,
+    started_at: null,
+    deadline_at: null,
+    remaining_seconds: 75 * 60,
+    timer_warning: false,
+    expired: false,
+  });
+  const [displaySeconds, setDisplaySeconds] = useState(75 * 60);
 
   useEffect(() => {
     if (!session) return;
@@ -113,34 +132,84 @@ function App() {
       const saved = JSON.parse(
         localStorage.getItem('swecha_sessions') || '{}'
       );
-      saved[registryKey] = session;
+      const participantKey =
+        `${registryKey}::${session.participant_id}`;
+      saved[participantKey] = session;
       localStorage.setItem('swecha_sessions', JSON.stringify(saved));
     } catch {
       console.error('Could not update saved team sessions.');
     }
   }, [session]);
 
-  async function handleJoin(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError('');
-    setJoining(true);
+  useEffect(() => {
+    if (!session || screen !== 'lobby') return;
+
+    let cancelled = false;
+    setHistoryLoading(true);
+    setHistoryError('');
+
+    getChallengeHistory(session.session_token)
+      .then((result) => {
+        if (!cancelled) setChallengeHistory(result.items);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setHistoryError(
+            err instanceof Error ? err.message : 'Could not load score history.',
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, screen]);
+
+  useEffect(() => {
+    if (!session || screen !== 'lobby') return;
+    let cancelled = false;
+    const refreshTimer = async () => {
+      try {
+        const result = await getWorkshopTimer(session.session_token);
+        if (cancelled) return;
+        setWorkshopTimer(result);
+        setDisplaySeconds(result.remaining_seconds);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load session timer.');
+      }
+    };
+    void refreshTimer();
+    const poll = window.setInterval(() => void refreshTimer(), 15000);
+    return () => { cancelled = true; window.clearInterval(poll); };
+  }, [session, screen]);
+
+  useEffect(() => {
+    const tick = () => {
+      if (!workshopTimer.started || !workshopTimer.deadline_at) {
+        setDisplaySeconds(workshopTimer.remaining_seconds);
+        return;
+      }
+      const remaining = Math.max(0, Math.ceil((Date.parse(workshopTimer.deadline_at) - Date.now()) / 1000));
+      setDisplaySeconds(remaining);
+      if (remaining === 0 && !workshopTimer.expired) {
+        setWorkshopTimer((current) => ({ ...current, expired: true, remaining_seconds: 0 }));
+      }
+    };
+    tick();
+    const interval = window.setInterval(tick, 1000);
+    return () => window.clearInterval(interval);
+  }, [workshopTimer.started, workshopTimer.deadline_at, workshopTimer.remaining_seconds, workshopTimer.expired]);
+
+  useEffect(() => {
+    if (screen !== 'join') return;
 
     const normalizedWorkshop = workshopCode.trim().toUpperCase();
     const normalizedTeam = teamCode.trim().toUpperCase();
-    const joinKey = `${normalizedWorkshop}::${normalizedTeam}`;
-
-    function codeFromTeamName(name: string): string {
-      const normalized = name.trim().toUpperCase();
-      const known: Record<string, string> = {
-        'TEAM ALPHA': 'ALPHA',
-        'TEAM BETA': 'BETA',
-        'TEAM GAMMA': 'GAMMA',
-        'REJOIN TEST': 'REJOIN',
-      };
-
-      return known[normalized] ??
-        normalized.replace(/^TEAM\s+/, '').replace(/\s+/g, '_');
-    }
+    const prefix = `${normalizedWorkshop}::${normalizedTeam}::`;
+    const legacyKey = `${normalizedWorkshop}::${normalizedTeam}`;
 
     let registry: Record<string, Session> = {};
     try {
@@ -151,25 +220,86 @@ function App() {
       registry = {};
     }
 
-    // Preserve the currently active team's session before switching.
+    const candidates = Object.entries(registry)
+      .filter(([key, saved]) => {
+        if (!saved?.session_token || !saved.participant_id) return false;
+        // Only participant-specific entries are safe to resume.
+        // Legacy workshop/team entries may have belonged to another participant.
+        if (!key.startsWith(prefix)) return false;
+
+        const teamName = saved.team_name.trim().toUpperCase();
+        const teamCode = teamName === 'TEAM ALPHA' ? 'ALPHA' :
+          teamName === 'TEAM BETA' ? 'BETA' :
+          teamName === 'TEAM GAMMA' ? 'GAMMA' :
+          teamName === 'REJOIN TEST' ? 'REJOIN' :
+          teamName.replace(/^TEAM\\s+/, '').replace(/\\s+/g, '_');
+
+        return teamCode === normalizedTeam;
+      })
+      .map(([, saved]) => saved);
+
+    const unique = Array.from(
+      new Map(candidates.map(saved => [saved.session_token, saved])).values()
+    );
+
+    setAvailableSessions(unique);
+    setResumeSessionToken(current =>
+      unique.some(saved => saved.session_token === current)
+        ? current
+        : (unique[0]?.session_token ?? '')
+    );
+  }, [screen, workshopCode, teamCode]);
+
+  async function handleJoin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError('');
+    setJoining(true);
+
+    const normalizedWorkshop = workshopCode.trim().toUpperCase();
+    const normalizedTeam = teamCode.trim().toUpperCase();
+
+    let registry: Record<string, Session> = {};
+    try {
+      registry = JSON.parse(
+        localStorage.getItem('swecha_sessions') || '{}'
+      );
+    } catch {
+      registry = {};
+    }
+
+    // Preserve the currently active session under its own participant key.
     if (session) {
-      const currentTeamCode = codeFromTeamName(session.team_name);
-      const currentKey = `${normalizedWorkshop}::${currentTeamCode}`;
+      const currentTeam = session.team_name.trim().toUpperCase();
+      const currentTeamCode =
+        currentTeam === 'TEAM ALPHA' ? 'ALPHA' :
+        currentTeam === 'TEAM BETA' ? 'BETA' :
+        currentTeam === 'TEAM GAMMA' ? 'GAMMA' :
+        currentTeam === 'REJOIN TEST' ? 'REJOIN' :
+        currentTeam.replace(/^TEAM\\s+/, '').replace(/\\s+/g, '_');
+
+      const currentKey =
+        `DEV-LAB::${currentTeamCode}::${session.participant_id}`;
       registry[currentKey] = session;
     }
 
-    // Persist all known sessions before making the request.
+    let token: string | null = null;
+
+    if (joinMode === 'resume') {
+      const selected = availableSessions.find(
+        saved => saved.session_token === resumeSessionToken
+      );
+
+      if (!selected) {
+        setError('Select a saved session to resume, or choose New Participant.');
+        setJoining(false);
+        return;
+      }
+
+      token = selected.session_token;
+    }
+
+    // New Participant deliberately sends null; never infer identity from team.
     localStorage.setItem('swecha_sessions', JSON.stringify(registry));
-
-    // Reuse the token belonging to the requested team, never another team.
-    const matchingSavedSession = registry[joinKey];
-    const activeSessionMatches =
-      session &&
-      codeFromTeamName(session.team_name) === normalizedTeam;
-
-    const token =
-      matchingSavedSession?.session_token ??
-      (activeSessionMatches ? session.session_token : null);
 
     try {
       const result = await apiRequest<Session>(
@@ -185,7 +315,9 @@ function App() {
         },
       );
 
-      registry[joinKey] = result;
+      const resultKey =
+        `${normalizedWorkshop}::${normalizedTeam}::${result.participant_id}`;
+      registry[resultKey] = result;
       localStorage.setItem('swecha_sessions', JSON.stringify(registry));
       localStorage.setItem('swecha_session', JSON.stringify(result));
 
@@ -199,10 +331,12 @@ function App() {
       setJoining(false);
     }
   }
+
   async function handleEnterChallenge(
     challenge: ChallengeDefinition,
   ) {
-    if (!session || startingChallenge) {
+    if (!session || startingChallenge || workshopTimer.expired || displaySeconds <= 0) {
+      if (workshopTimer.expired || displaySeconds <= 0) setError('The 75-minute session has expired. Your scores and history are preserved.');
       return;
     }
 
@@ -213,7 +347,11 @@ function App() {
       const run = await startChallenge(
         session.session_token,
         challenge.slug,
-      );      localStorage.setItem(
+      );
+      const timer = await getWorkshopTimer(session.session_token);
+      setWorkshopTimer(timer);
+      setDisplaySeconds(timer.remaining_seconds);
+      localStorage.setItem(
         'swecha_selected_challenge',
         JSON.stringify(challenge),
       );
@@ -288,6 +426,12 @@ function App() {
             </div>
           </div>
 
+          <div className={`challenge-timer${workshopTimer.timer_warning ? ' warning' : ''}${workshopTimer.expired ? ' expired' : ''}`} role="timer" aria-live="polite">
+            <span>{workshopTimer.expired ? 'TIME EXPIRED' : workshopTimer.started ? 'SESSION TIME REMAINING' : 'SESSION TIME AVAILABLE'}</span>
+            <strong>{String(Math.floor(displaySeconds / 60)).padStart(2, '0')}:{String(displaySeconds % 60).padStart(2, '0')}</strong>
+            <small>{workshopTimer.expired ? 'Your scores and challenge history are preserved.' : workshopTimer.started ? 'One timer shared across all four challenges' : 'The timer starts when you run your first challenge.'}</small>
+          </div>
+
           <div className="welcome-card">
             <div>
               <span className="status-dot" />
@@ -333,6 +477,95 @@ function App() {
             </button>
           </div>
 
+          <section className="score-tracker" aria-label="Challenge score tracker">
+            <div className="score-tracker-heading">
+              <div>
+                <div className="eyebrow">YOUR PERFORMANCE</div>
+                <h2>Challenge Progress</h2>
+              </div>
+              <span className="score-tracker-count">
+                {challengeHistory.filter((item) => item.state === 'completed').length} / {CHALLENGES.length} completed
+              </span>
+            </div>
+
+            <div
+              className="score-tracker-progress"
+              role="progressbar"
+              aria-label="Challenges completed"
+              aria-valuemin={0}
+              aria-valuemax={CHALLENGES.length}
+              aria-valuenow={challengeHistory.filter((item) => item.state === 'completed').length}
+            >
+              <div
+                className="score-tracker-progress-fill"
+                style={{
+                  width: `${(challengeHistory.filter((item) => item.state === 'completed').length / CHALLENGES.length) * 100}%`,
+                }}
+              />
+            </div>
+
+            {historyLoading && <p className="muted">Refreshing your scores…</p>}
+            {historyError && <p className="muted">Score history unavailable: {historyError}</p>}
+
+            <div className="score-tracker-list">
+              {CHALLENGES.map((challenge) => {
+                const runs = challengeHistory
+                  .filter((item) => item.challenge_slug === challenge.slug)
+                  .sort((a, b) => Date.parse(b.started_at ?? '') - Date.parse(a.started_at ?? ''));
+                const latest = runs[0];
+                const best = runs.reduce(
+                  (highest, item) => Math.max(highest, item.best_score ?? 0, item.score ?? 0),
+                  0,
+                );
+                const retries = runs.reduce((total, item) => total + (item.reset_count ?? 0), 0);
+                const stateLabel = !latest
+                  ? 'Not started'
+                  : latest.state === 'completed'
+                    ? 'Completed'
+                    : latest.state === 'active'
+                      ? 'In progress'
+                      : latest.state;
+
+                return (
+                  <div className="score-tracker-row" key={challenge.slug}>
+                    <div className="score-tracker-challenge">
+                      <span className="score-tracker-number">
+                        {String(challenge.order).padStart(2, '0')}
+                      </span>
+                      <div>
+                        <strong>{challenge.name}</strong>
+                        <small>{stateLabel}{runs.length ? ` · ${runs.length} run${runs.length === 1 ? '' : 's'}` : ''}</small>
+                      </div>
+                    </div>
+                    <div className="score-tracker-stats">
+                      <span>Current <strong>{latest?.score ?? 0}</strong></span>
+                      <span>Best <strong>{best}</strong></span>
+                      <span>Resets <strong>{retries}</strong></span>
+                    </div>
+                    {latest?.attempts?.length ? (
+                      <div className="score-tracker-attempts">
+                        <strong>Previous attempts</strong>
+                        <div className="score-tracker-attempt-list">
+                          {latest.attempts.map((attempt) => (
+                            <span key={`${latest.run_id}-${attempt.attempt_number}`}>
+                              Attempt {attempt.attempt_number}: <b>{attempt.score}</b>/100
+                              {attempt.best_score > attempt.score
+                                ? ` · Best ${attempt.best_score}`
+                                : ''}
+                            </span>
+                          ))}
+                          <span className="score-tracker-current-attempt">
+                            Current attempt: <b>{latest.score}</b>/100
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
           <section className="challenge-grid">
             {CHALLENGES.map((challenge) => (
               <ChallengeCard
@@ -341,7 +574,7 @@ function App() {
                 title={challenge.name}
                 category={challenge.category || ''}
                 description={challenge.description || ''}
-                disabled={startingChallenge}
+                disabled={startingChallenge || workshopTimer.expired || displaySeconds <= 0}
                 onEnter={() =>
                   handleEnterChallenge(challenge)
                 }
@@ -402,6 +635,54 @@ function App() {
                 required
               />
             </label>
+
+            <fieldset className="join-mode-options">
+              <legend>Participant Session</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="joinMode"
+                  value="new"
+                  checked={joinMode === 'new'}
+                  onChange={() => setJoinMode('new')}
+                />
+                New Participant
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="joinMode"
+                  value="resume"
+                  checked={joinMode === 'resume'}
+                  onChange={() => setJoinMode('resume')}
+                  disabled={availableSessions.length === 0}
+                />
+                Resume Saved Session
+              </label>
+              {joinMode === 'resume' && (
+                availableSessions.length > 0 ? (
+                  <label>
+                    Saved Session
+                    <select
+                      value={resumeSessionToken}
+                      onChange={event => setResumeSessionToken(event.target.value)}
+                      required
+                    >
+                      {availableSessions.map(saved => (
+                        <option
+                          key={saved.session_token}
+                          value={saved.session_token}
+                        >
+                          {saved.team_name} — participant {saved.participant_id.slice(0, 8)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <p className="muted">No saved sessions found for this workshop and team.</p>
+                )
+              )}
+            </fieldset>
 
             <label>
               Display Name

@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.models import ChallengeRun,LabSession,AttackAttempt,LabEvent,ToolCall
+from app.services.challenge_timer import enforce_deadline
 from app.services.c3_agent import OrderAgent
 from app.services.c3_policy import normalize_controls, is_refund_trigger
 
@@ -18,6 +19,7 @@ def _record(db,s,run,reply):
 
 def message(db,t,r,msg):
  s,run=load(db,t,r)
+ enforce_deadline(db,run)
  if run.current_phase!='break' or run.state!='active': raise ValueError('Challenge run is not accepting BREAK-phase messages')
  rt=dict(run.runtime_state or {}); reply=OrderAgent(rt['account_id'],rt['orders']).respond(msg,rt['policies']); _record(db,s,run,reply)
  discovered='get_order' in [c['tool'] for c in reply.tool_calls]
@@ -31,6 +33,7 @@ def message(db,t,r,msg):
 
 def secure(db,t,r,root_cause=None,controls=None):
  s,run=load(db,t,r)
+ enforce_deadline(db,run)
  if run.current_phase!='secure': raise ValueError('Challenge run is not in SECURE phase')
  rt=dict(run.runtime_state or {})
  if root_cause is not None:
@@ -43,6 +46,7 @@ def secure(db,t,r,root_cause=None,controls=None):
 
 def start_retest(db,t,r):
  s,run=load(db,t,r); rt=dict(run.runtime_state or {})
+ enforce_deadline(db,run)
  if run.current_phase!="secure": raise ValueError("Challenge run is not in SECURE phase")
  if not rt.get("root_cause_correct"): raise ValueError("Submit the correct root cause before RETEST")
  if not any(v.get("enabled") for v in rt.get("policies", {}).values()): raise ValueError("Configure a protective control before RETEST")
@@ -52,6 +56,7 @@ def start_retest(db,t,r):
 
 def retest(db,t,r,msg):
     s,run=load(db,t,r)
+    enforce_deadline(db,run)
     rt=dict(run.runtime_state or {})
 
     if run.current_phase!='retest':
@@ -96,6 +101,7 @@ def retest(db,t,r,msg):
 
 def functionality(db,t,r,msg):
  s,run=load(db,t,r); rt=dict(run.runtime_state or {})
+ enforce_deadline(db,run)
  if run.current_phase!='retest': raise ValueError('Challenge run is not in RETEST phase')
  reply=OrderAgent(rt['account_id'],rt['orders']).respond(msg,rt['policies']); passed='ORD-1001' in reply.text and '₹4999' in reply.text and not reply.unauthorized_action; rt['retest_functionality_passed']=passed; run.runtime_state=rt
  if passed and rt.get('retest_attack_passed'): apply_score_floor(run, 90+(10 if rt.get('discovery_points_awarded') else 0)); run.current_phase='completed'; run.state='completed'

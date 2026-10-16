@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models import ChallengeRun, LabSession
 from app.services.policy_engine import any_protective_control_enabled
+from app.services.challenge_timer import refresh_expiry, timer_status
 
 
 def get_c1_status(db: Session, session_token: str, run_id: UUID) -> dict:
@@ -27,6 +28,9 @@ def get_c1_status(db: Session, session_token: str, run_id: UUID) -> dict:
     if not run:
         raise ValueError("Challenge run not found")
 
+    refresh_expiry(db, run)
+    timer = timer_status(run, db=db)
+
     runtime = run.runtime_state or {}
     controls = runtime.get("policies", {})
     discovered = runtime.get("discovery_documents", [])
@@ -37,6 +41,8 @@ def get_c1_status(db: Session, session_token: str, run_id: UUID) -> dict:
         "phase": run.current_phase,
         "state": run.state,
         "score": run.score,
+        "best_score": max(int(run.best_score or 0), int(run.score or 0)),
+        **timer,
         "discovery": {
             "documents_found": len(discovered),
             "document_ids": discovered,

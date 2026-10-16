@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models import Challenge, ChallengeRun, LabEvent, LabSession
 from app.services.score_service import apply_hint_penalty
+from app.services.challenge_timer import enforce_deadline
 
 
 router = APIRouter(prefix="/hints", tags=["challenge-hints"])
@@ -132,6 +133,11 @@ def reveal_hint(request: HintRequest, db: Session = Depends(get_db)):
         session, run = _load_run(
             db, request.session_token, request.run_id, request.challenge_slug
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    try:
+        enforce_deadline(db, run)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

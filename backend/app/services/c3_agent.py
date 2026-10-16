@@ -7,7 +7,13 @@ class OrderAgent:
     def respond(self,message,controls):
         n=message.lower(); refund="refund" in n or "issue a refund" in n
         if refund:
-            order_id=next((x for x in self.orders if x.lower() in n),"ORD-1001")
+            order_id = next((x for x in self.orders if x.lower() in n), None)
+            if order_id is None:
+                return Reply(
+                    "I couldn't find that order ID. Please verify the order number before requesting a refund.",
+                    [],
+                    False,
+                )
             order=self.orders[order_id]
             blocked=any(controls.get(k,{}).get("enabled") for k in ("least_privilege","tool_authorization","approval_gate","parameter_validation"))
             if blocked:

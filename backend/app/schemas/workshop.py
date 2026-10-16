@@ -31,7 +31,11 @@ class ResetChallengeResponse(BaseModel):
     phase: str
     state: str
     score: int
+    best_score: int = 0
     reset_count: int
+    deadline_at: str | None = None
+    remaining_seconds: int | None = None
+    timer_warning: bool = False
 
 
 class ChallengeRunResponse(BaseModel):
@@ -41,3 +45,35 @@ class ChallengeRunResponse(BaseModel):
     phase: str
     state: str
     score: int
+    best_score: int = 0
+    deadline_at: str | None = None
+    remaining_seconds: int | None = None
+    timer_warning: bool = False
+
+
+class ChallengeAttemptHistoryItem(BaseModel):
+    attempt_number: int
+    score: int
+    best_score: int
+    phase: str
+    state: str
+    reset_at: str | None = None
+
+
+class ChallengeHistoryItem(BaseModel):
+    run_id: UUID
+    challenge_slug: str
+    challenge_name: str
+    challenge_version: str
+    phase: str
+    state: str
+    score: int
+    best_score: int = 0
+    reset_count: int = 0
+    attempts: list[ChallengeAttemptHistoryItem] = []
+    started_at: str | None = None
+    completed_at: str | None = None
+
+
+class ChallengeHistoryResponse(BaseModel):
+    items: list[ChallengeHistoryItem]
